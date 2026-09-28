@@ -13,10 +13,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    printIsolatedElement(
-      printRef.current,
-      `${profile.personalInfo.fullName || 'Candidate'}_ATS_Resume`
-    );
+    printIsolatedElement(printRef.current, '');
   };
 
   const { personalInfo, skills, experience, projects, education, certifications } = profile;

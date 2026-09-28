@@ -37,9 +37,10 @@ body {
    surrounding application UI (navigation, sidebars, buttons, form editors).
    ========================================================================== */
 @media print {
+  /* Zero page margin completely suppresses browser default headers (date, title) and footers (URL, page number) */
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm;
+    margin: 0mm !important;
   }
 
   /* Force pure white background on the printed canvas */
@@ -88,7 +89,7 @@ body {
     border-color: transparent !important;
   }
 
-  /* Ensure resume sheet is full width, centered, and pristine */
+  /* Ensure resume sheet is full width, centered, and pristine with standard margin padding */
   #ats-resume-document,
   #tailored-ats-resume-sheet,
   .printable-resume-sheet {
@@ -97,12 +98,13 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 12mm 15mm !important; /* Jake's Resume / Harvard Standard padding */
     background: #ffffff !important;
     color: #000000 !important;
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
+    box-sizing: border-box !important;
   }
 
   /* Avoid awkward page breaks in the middle of job/project entries */

@@ -30,10 +30,7 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
   const { profile: tailored } = tailoredProfile;
 
   const handlePrintTailored = () => {
-    printIsolatedElement(
-      printRef.current,
-      `${tailored.personalInfo.fullName || 'Candidate'}_${tailoredProfile.company}_Tailored_Resume`
-    );
+    printIsolatedElement(printRef.current, '');
   };
 
   return (

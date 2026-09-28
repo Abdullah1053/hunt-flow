@@ -5,7 +5,7 @@
  * cloning all application stylesheets and fonts while stripping away all
  * surrounding webpage UI (headers, sidebars, buttons, editor panels, backgrounds).
  */
-export function printIsolatedElement(element: HTMLElement | null, documentTitle = 'ATS Resume') {
+export function printIsolatedElement(element: HTMLElement | null, documentTitle = '') {
   if (!element || typeof window === 'undefined') return;
 
   // Clean up any stale print iframes
@@ -51,12 +51,13 @@ export function printIsolatedElement(element: HTMLElement | null, documentTitle 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${documentTitle}</title>
+    <title></title>
     ${stylesHtml}
     <style>
+      /* Suppress browser default headers (date, title) and footers (URL, page number) */
       @page {
         size: A4 portrait;
-        margin: 12mm 15mm;
+        margin: 0mm !important;
       }
       * {
         box-sizing: border-box !important;
@@ -78,12 +79,13 @@ export function printIsolatedElement(element: HTMLElement | null, documentTitle 
       #print-root {
         width: 100% !important;
         max-width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        margin: 0 auto !important;
+        padding: 12mm 15mm !important; /* Standard Harvard / Jake's ATS Resume margin */
         background: #ffffff !important;
         color: #000000 !important;
         box-shadow: none !important;
         border: none !important;
+        box-sizing: border-box !important;
       }
       /* Prevent awkward mid-section breaks across pages */
       .entry-block,
@@ -110,6 +112,9 @@ export function printIsolatedElement(element: HTMLElement | null, documentTitle 
   // Give the browser time to parse CSS and fonts before triggering print
   setTimeout(() => {
     try {
+      if (doc) {
+        doc.title = '';
+      }
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
     } catch (e) {

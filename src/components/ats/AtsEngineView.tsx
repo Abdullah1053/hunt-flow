@@ -157,10 +157,7 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
   };
 
   const handlePrint = () => {
-    printIsolatedElement(
-      printRef.current,
-      `${personalInfo.fullName || 'Candidate'}_ATS_Resume`
-    );
+    printIsolatedElement(printRef.current, '');
   };
 
   return (

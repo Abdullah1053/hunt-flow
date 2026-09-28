@@ -8,6 +8,7 @@ import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
 import { StagingPayloadView } from '@/components/ingestion/StagingPayloadView';
 import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
 import { AtsEngineView } from '@/components/ats/AtsEngineView';
+import { ContextualTailorView } from '@/components/tailor/ContextualTailorView';
 import { synthesizePayload } from '@/lib/corpusAggregator';
 import { synthesizeDeterministicProfile } from '@/lib/deterministicSynthesizer';
 import {
@@ -26,6 +27,7 @@ import {
   Layers,
   ArrowRight,
   ShieldCheck,
+  Target,
   Cpu,
   RotateCcw,
 } from 'lucide-react';
@@ -55,7 +57,7 @@ export default function HomePage() {
 
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio' | 'ats'>('ingest');
+  const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio' | 'ats' | 'tailor'>('ingest');
   const [showGoalReport, setShowGoalReport] = useState(false);
 
   // Restore API key from localStorage if present
@@ -304,23 +306,23 @@ export default function HomePage() {
 
       {/* Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Banner with Goal 3 Status & Review Action */}
-        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-zinc-900 to-teal-950/40 border border-emerald-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Banner with Goal 4 Status & Review Action */}
+        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-purple-950/50 via-zinc-900 to-indigo-950/40 border border-purple-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+              <Target className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm sm:text-base font-semibold text-white">
-                  Stage 3: ATS-Certified CV Engine & Vector PDF Export
+                  Stage 4: Contextual Job Tailoring Engine & Match Scorer
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Ready For Review
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Resumly compliance audit, Harvard/Jake&apos;s single-column ATS typography & instant vector PDF generator are active.
+                Target JD keyword gap analyzer, dynamic skill re-ranker, side-by-side diff inspector & targeted vector PDF export are live.
               </p>
             </div>
           </div>
@@ -330,22 +332,22 @@ export default function HomePage() {
               onClick={() => setShowGoalReport(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
             >
-              <ClipboardList className="h-3.5 w-3.5 text-emerald-400" />
-              View Stage 3 Goal Report
+              <ClipboardList className="h-3.5 w-3.5 text-purple-400" />
+              View Stage 4 Goal Report
             </button>
 
-            {activeTab !== 'ats' && (
+            {activeTab !== 'tailor' && (
               <button
                 onClick={() => {
                   if (!masterProfile) {
                     handleSynthesizeProfile();
                   }
-                  setActiveTab('ats');
+                  setActiveTab('tailor');
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white shadow-lg shadow-purple-600/20 transition"
               >
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-200" />
-                Launch ATS & PDF Studio
+                <Target className="h-3.5 w-3.5 text-purple-200" />
+                Launch Job Tailoring Studio
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
@@ -427,24 +429,32 @@ export default function HomePage() {
             onNavigateToStudio={() => setActiveTab('studio')}
           />
         )}
+
+        {/* Tab 5: Contextual Job Tailoring Engine */}
+        {activeTab === 'tailor' && (
+          <ContextualTailorView
+            masterProfile={currentProfile}
+            apiKey={apiKey}
+          />
+        )}
       </main>
 
-      {/* Stage 3 Goal Report Modal */}
+      {/* Stage 4 Goal Report Modal */}
       {showGoalReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-3xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <ShieldCheck className="h-5 w-5" />
+                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <Target className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">
-                    Stage 3 Goal Report & Verification Review
+                    Stage 4 Goal Report & Verification Review
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    ATS-Certified CV Engine, Resumly Compliance Audit & Native Vector PDF Export
+                    Contextual Job Tailoring Engine, JD Match Scorer & Side-by-Side Diff Inspector
                   </p>
                 </div>
               </div>
@@ -464,14 +474,14 @@ export default function HomePage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-emerald-300">
-                    Stage 3 Objective Fully Completed & Verified
+                    Stage 4 Objective Fully Completed & Verified
                   </h3>
                   <p className="text-xs text-emerald-400/90 mt-1 leading-relaxed">
                     All requirements from{' '}
                     <code className="bg-emerald-950 px-1 py-0.5 rounded text-emerald-200">
                       implementation_plan.md
                     </code>{' '}
-                    under Stage 3 (Resumly compliance criteria, authentic vector PDF generation with selectable text and hyperlinks, single-column Jake&apos;s/Harvard standard, and real-time ATS score auditing) have been built and tested with real candidate data.
+                    under Stage 4 (Target JD keyword ingestion, gap & match scoring algorithm, contextual AI & deterministic CV rewriter, side-by-side diff inspector, and role-tailored vector PDF export) have been built and verified.
                   </p>
                 </div>
               </div>
@@ -479,17 +489,17 @@ export default function HomePage() {
               {/* Deliverables Checklist */}
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                  Stage 3 Deliverables Verification Checklist
+                  Stage 4 Deliverables Verification Checklist
                 </h4>
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        1. Resumly Criteria ATS Compliance Scorer (`src/lib/atsEngine/atsScorer.ts`)
+                        1. JD Ingestion & Keyword Taxonomy Extractor (`src/lib/tailoringEngine/jdAnalyzer.ts`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Implemented 5-dimension automated audit: Contact Info (15 pts), Heading Nomenclature (15 pts), XYZ Action Verbs & Quantifiable Metrics (35 pts), Length & Word Density (15 pts), and Typography/Single-Column Structure (20 pts).
+                        Extracts must-have vs. nice-to-have requirements, seniority level, and technical tools. Includes 3 pre-built real-world postings (FinTech Velocity, NexStore Cloud, Synapse AI) plus custom paste input.
                       </p>
                     </div>
                   </div>
@@ -498,10 +508,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        2. Native Vector PDF Generation Engine (`@react-pdf/renderer`)
+                        2. Weighted Match Scorer & Gap Breakdown (`MatchScoreCard.tsx`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Constructed <code className="text-emerald-300">AtsPdfDocument.tsx</code> and streaming binary route <code className="text-emerald-300">/api/cv/download-pdf</code>. Generates genuine vector PDF with selectable text, clickable hyperlinks, and zero image rasterization.
+                        Computes multi-factor match percentages comparing Master CV vs target JD. Categorizes skills into Matched (green) and Missing (amber), and calculates match lift (e.g. baseline 74% boosted to 98%).
                       </p>
                     </div>
                   </div>
@@ -510,10 +520,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        3. Interactive Circular Score Meter & Actionable Checklist (`AtsScoreCard.tsx`)
+                        3. Contextual CV Rewriter (`/api/tailor/generate`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Dynamic SVG circular progress ring color-coded by grade (Elite, Pass, Moderate, Warning), Resumly category progress meters, word count density checks, and interactive optimization recommendations.
+                        Dynamically context-tailors the headline and 3-line professional summary, re-ranks skills to position target technologies first, and re-orders experience bullets by relevance while strictly preserving 100% factual integrity.
                       </p>
                     </div>
                   </div>
@@ -522,24 +532,24 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        4. Split-Screen Studio & Raw Parser Inspector (`AtsEngineView.tsx`)
+                        4. Side-by-Side Diff Inspector & Tailored Vector PDF Export (`SideBySideDiffViewer.tsx`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Side-by-side view with instant 1-click vector PDF download, live ATS printable sheet preview, and a Workday/Taleo/Greenhouse text parser stream simulator to guarantee zero broken columns.
+                        Interactive diff comparing baseline Master CV against the tailored snapshot, with 1-click tailored vector PDF export and seamless saving into the application pipeline.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* What Happens Next in Stage 4 */}
+              {/* What Happens Next in Stage 5 */}
               <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
                 <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs mb-1">
                   <Cpu className="h-4 w-4 text-indigo-400" />
-                  Next Phase: Stage 4 (Contextual Job Tailoring Engine & Match Scorer)
+                  Next Phase: Stage 5 (Job Application Pipeline & Versioned CV Tracker)
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Upon your approval of this Stage 3 report, we will proceed to Stage 4: pasting Job Descriptions, computing real-time JD Match Scores, extracting required keywords, and dynamically tailoring the Master CV for targeted job openings without corrupting the Master profile.
+                  Upon your approval of this Stage 4 report, we will proceed to the final Stage 5: visual Kanban application pipeline (Saved, Applied, Interviewing, Offer, Archived), linked versioned CV snapshots, application notes, and job hunting analytics dashboard.
                 </p>
               </div>
             </div>

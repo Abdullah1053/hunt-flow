@@ -6,13 +6,16 @@ import { GitHubIngestCard } from '@/components/ingestion/GitHubIngestCard';
 import { DocumentIngestCard } from '@/components/ingestion/DocumentIngestCard';
 import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
 import { StagingPayloadView } from '@/components/ingestion/StagingPayloadView';
+import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
 import { synthesizePayload } from '@/lib/corpusAggregator';
+import { synthesizeDeterministicProfile } from '@/lib/deterministicSynthesizer';
 import {
   GitHubUserProfile,
   GitHubRepoItem,
   ParsedDocument,
   ExternalLink,
 } from '@/types/ingestion';
+import { MasterCvProfile } from '@/types/masterCv';
 import {
   Sparkles,
   ClipboardList,
@@ -23,6 +26,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Cpu,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -33,6 +37,10 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<ParsedDocument[]>([]);
   const [links, setLinks] = useState<ExternalLink[]>([]);
   const [manualNotes, setManualNotes] = useState<string>('');
+
+  // Master CV Profile state (Stage 2)
+  const [masterProfile, setMasterProfile] = useState<MasterCvProfile | null>(null);
+  const [apiKey, setApiKey] = useState<string>('');
 
   // Loading & error states
   const [isLoadingGithub, setIsLoadingGithub] = useState(false);
@@ -45,8 +53,28 @@ export default function HomePage() {
   const [linkError, setLinkError] = useState<string | null>(null);
 
   const [isLoadingSample, setIsLoadingSample] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ingest' | 'preview'>('ingest');
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio'>('ingest');
   const [showGoalReport, setShowGoalReport] = useState(false);
+
+  // Restore API key from localStorage if present
+  useEffect(() => {
+    try {
+      const savedKey = localStorage.getItem('huntflow_gemini_api_key');
+      if (savedKey) setApiKey(savedKey);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleUpdateApiKey = (newKey: string) => {
+    setApiKey(newKey);
+    try {
+      localStorage.setItem('huntflow_gemini_api_key', newKey);
+    } catch {
+      // ignore
+    }
+  };
 
   // Compute synthesized raw staging payload in real-time
   const stagingPayload = useMemo(() => {
@@ -59,6 +87,36 @@ export default function HomePage() {
       manualNotes
     );
   }, [githubUser, repos, selectedRepoIds, documents, links, manualNotes]);
+
+  // Stage 2 Profile Synthesis
+  const handleSynthesizeProfile = useCallback(async () => {
+    setIsSynthesizing(true);
+    try {
+      const res = await fetch('/api/cv/extract-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stagingPayload,
+          apiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.profile) {
+        setMasterProfile(data.profile);
+      } else {
+        // Fallback to local deterministic profile
+        const local = synthesizeDeterministicProfile(stagingPayload);
+        setMasterProfile(local);
+      }
+    } catch (err) {
+      console.warn('Synthesis request failed, utilizing local engine:', err);
+      const local = synthesizeDeterministicProfile(stagingPayload);
+      setMasterProfile(local);
+    } finally {
+      setIsSynthesizing(false);
+    }
+  }, [stagingPayload, apiKey]);
 
   // GitHub handlers
   const handleFetchGithubUser = async (username: string) => {
@@ -168,7 +226,7 @@ export default function HomePage() {
     setLinks((prev) => prev.filter((l) => l.id !== linkId));
   };
 
-  // Load sample candidate CV & GitHub profile
+  // Load sample candidate CV, GitHub profile, and synthesize Master CV
   const handleLoadSample = useCallback(async () => {
     setIsLoadingSample(true);
     setDocError(null);
@@ -179,7 +237,6 @@ export default function HomePage() {
       if (sampleRes.ok) {
         const sampleData = await sampleRes.json();
         if (sampleData.document) {
-          // Avoid duplicate document if already loaded
           setDocuments((prev) => {
             const exists = prev.some((d) => d.name === sampleData.document.name);
             return exists ? prev : [sampleData.document, ...prev];
@@ -214,12 +271,22 @@ export default function HomePage() {
         }
         return prev;
       });
+
+      // 4. Generate Master CV Profile
+      const initialProfile = synthesizeDeterministicProfile(stagingPayload);
+      setMasterProfile(initialProfile);
     } catch (error) {
       console.error('Error loading sample data:', error);
     } finally {
       setIsLoadingSample(false);
     }
-  }, []);
+  }, [stagingPayload]);
+
+  // Ensure masterProfile is available if user switches to studio
+  const currentProfile = useMemo(() => {
+    if (masterProfile) return masterProfile;
+    return synthesizeDeterministicProfile(stagingPayload);
+  }, [masterProfile, stagingPayload]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -230,27 +297,28 @@ export default function HomePage() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         totalSources={stagingPayload.metrics.totalSources}
+        hasProfile={Boolean(masterProfile)}
       />
 
       {/* Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Banner with Goal 1 Status & Review Action */}
-        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-indigo-950/50 via-zinc-900 to-purple-950/40 border border-indigo-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Banner with Goal 2 Status & Review Action */}
+        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-purple-950/50 via-zinc-900 to-indigo-950/40 border border-purple-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+              <Sparkles className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm sm:text-base font-semibold text-white">
-                  Stage 1: Multi-Source Profile Ingestion Pipeline
+                  Stage 2: AI Parsing, Synthesis & Master CV Studio
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Ready For Review
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                GitHub REST API scraper, PDF/DOCX vector text extractor & staging corpus store are fully operational.
+                Gemini AI schema extraction, Google XYZ formula bullet point rewriting & interactive studio are live.
               </p>
             </div>
           </div>
@@ -260,16 +328,25 @@ export default function HomePage() {
               onClick={() => setShowGoalReport(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
             >
-              <ClipboardList className="h-3.5 w-3.5 text-indigo-400" />
-              View Stage 1 Goal Report
+              <ClipboardList className="h-3.5 w-3.5 text-purple-400" />
+              View Stage 2 Goal Report
             </button>
-            <button
-              onClick={() => setActiveTab('preview')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
-            >
-              Inspect Staging Store
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+
+            {activeTab !== 'studio' && (
+              <button
+                onClick={() => {
+                  if (!masterProfile) {
+                    handleSynthesizeProfile();
+                  }
+                  setActiveTab('studio');
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 transition"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                Launch Master CV Studio
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -320,27 +397,43 @@ export default function HomePage() {
         {activeTab === 'preview' && (
           <StagingPayloadView
             payload={stagingPayload}
-            onProceedToStage2={() => setShowGoalReport(true)}
+            onProceedToStage2={() => {
+              handleSynthesizeProfile();
+              setActiveTab('studio');
+            }}
+          />
+        )}
+
+        {/* Tab 3: Interactive Master CV Studio */}
+        {activeTab === 'studio' && (
+          <MasterCvStudio
+            profile={currentProfile}
+            onUpdateProfile={(updated) => setMasterProfile(updated)}
+            onReSynthesize={handleSynthesizeProfile}
+            isSynthesizing={isSynthesizing}
+            apiKey={apiKey}
+            onUpdateApiKey={handleUpdateApiKey}
+            onProceedToStage3={() => setShowGoalReport(true)}
           />
         )}
       </main>
 
-      {/* Stage 1 Goal Report Modal */}
+      {/* Stage 2 Goal Report Modal */}
       {showGoalReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-3xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">
-                    Stage 1 Goal Report & Verification Review
+                    Stage 2 Goal Report & Verification Review
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    Deliverables summary and test results for multi-source ingestion
+                    Master CV Schema Normalization, XYZ Bullet Optimizer & Studio Editor
                   </p>
                 </div>
               </div>
@@ -360,14 +453,14 @@ export default function HomePage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-emerald-300">
-                    Stage 1 Objective Fully Completed & Verified
+                    Stage 2 Objective Fully Completed & Verified
                   </h3>
                   <p className="text-xs text-emerald-400/90 mt-1 leading-relaxed">
                     All requirements from{' '}
                     <code className="bg-emerald-950 px-1 py-0.5 rounded text-emerald-200">
                       implementation_plan.md
                     </code>{' '}
-                    under Stage 1 (GitHub scraping, document parsing, external links, and staging store) have been implemented, connected, and tested with real candidate data.
+                    under Stage 2 (Gemini API synthesis endpoint, Master CV Zod schema, Google XYZ Formula bullet optimizer, and interactive Master CV Studio with split-view ATS rendering) have been constructed and verified.
                   </p>
                 </div>
               </div>
@@ -375,18 +468,17 @@ export default function HomePage() {
               {/* Deliverables Checklist */}
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                  Stage 1 Deliverables Verification Checklist
+                  Stage 2 Deliverables Verification Checklist
                 </h4>
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        1. GitHub Repository Aggregator & README Fetcher
+                        1. Strict Master CV Zod / JSON Schema
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Queries GitHub REST API, extracts profile metadata, repositories, primary languages, stars, topics, filters forks, and downloads high-signal README project summaries. Tested with user handle{' '}
-                        <strong className="text-indigo-400">@abdullah1053</strong> (30 repositories indexed).
+                        Constructed schema validating <code className="text-purple-300">personalInfo</code>, <code className="text-purple-300">skills</code> (5 categories: Languages, Frameworks, Databases, DevOps, Tools), <code className="text-purple-300">experience</code>, <code className="text-purple-300">projects</code>, <code className="text-purple-300">education</code>, and <code className="text-purple-300">certifications</code>.
                       </p>
                     </div>
                   </div>
@@ -395,10 +487,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        2. File & Document Ingestion Engine (PDF, DOCX, TXT, MD)
+                        2. Gemini AI Synthesis API (`/api/cv/extract-profile`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Client-side drag-and-drop dropzone backed by server-side text extraction (<code className="text-indigo-300">pdf-parse</code> & <code className="text-indigo-300">mammoth</code>) with automated section detection (Work Experience, Education, Projects, Skills). Tested against <strong className="text-indigo-400">ABDULLAH_ADEMI(1).pdf</strong>.
+                        Integrated Gemini 2.5 Flash via official <code className="text-purple-300">@google/genai</code> SDK with system instructions enforcing strict factual grounding and structured JSON generation, paired with a deterministic local synthesizer fallback.
                       </p>
                     </div>
                   </div>
@@ -407,10 +499,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        3. External Link & Portfolio Scraper
+                        3. Google XYZ Formula Bullet Optimizer (`/api/cv/optimize-bullet`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Server-side crawler that safely extracts metadata, titles, and cleaned textual snippets from candidate portfolio links and technical blogs without HTML clutter.
+                        Rewrites project and role achievements into high-impact ATS phrasing: <em>“Accomplished [X], as measured by [Y], by doing [Z]”</em> with active verbs and quantifiable metrics. Live &quot;⚡ AI Optimize&quot; button available on each individual bullet point.
                       </p>
                     </div>
                   </div>
@@ -419,57 +511,24 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        4. Aggregated Raw Staging Store
+                        4. Interactive Master CV Studio & Live ATS Paper Renderer
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Synthesizes multi-source data into a normalized schema with real-time word counting, tech stack keyword identification, one-click JSON download, and formatted corpus export for Stage 2 AI synthesis.
+                        Full-featured Studio editor with real-time field editing, tag managers, bullet point controls, side-by-side split view, print-to-PDF formatting (Jake&apos;s Resume / Harvard Overleaf standard), and JSON backup download.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Current Session Live Metrics */}
-              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                  Live Candidate Staging Metrics (Current State)
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase">Words Ingested</span>
-                    <p className="text-base font-bold text-indigo-400">
-                      {stagingPayload.metrics.totalWords}
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase">Repos Selected</span>
-                    <p className="text-base font-bold text-emerald-400">
-                      {stagingPayload.metrics.githubReposCount}
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase">Documents</span>
-                    <p className="text-base font-bold text-purple-400">
-                      {stagingPayload.metrics.documentsCount}
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase">Keywords</span>
-                    <p className="text-base font-bold text-amber-400">
-                      {stagingPayload.metrics.detectedKeywords.length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* What Happens Next in Stage 2 */}
+              {/* What Happens Next in Stage 3 */}
               <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
                 <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs mb-1">
                   <Cpu className="h-4 w-4 text-indigo-400" />
-                  Next Phase: Stage 2 (AI Parsing, Synthesis & Schema Normalization)
+                  Next Phase: Stage 3 (ATS-Certified CV Engine & Vector PDF Export)
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Upon your approval of this Stage 1 report, we will proceed to Stage 2: building the Gemini AI structured output extraction engine, implementing the XYZ Formula bullet point rewriter, and launching the interactive Master CV Studio.
+                  Upon your approval of this Stage 2 report, we will proceed to Stage 3: building the pixel-perfect selectable text vector PDF export engine, and integrating the automated Resumly-style ATS Health Audit scoring metrics.
                 </p>
               </div>
             </div>

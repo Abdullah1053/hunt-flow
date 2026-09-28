@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ExternalLink } from '@/types/ingestion';
 
 export async function POST(req: NextRequest) {
+  let rawUrl = '';
   try {
-    const { url } = await req.json();
+    const body = await req.json();
+    rawUrl = typeof body?.url === 'string' ? body.url : '';
+    const url = rawUrl;
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'Valid URL is required.' }, { status: 400 });
@@ -77,7 +80,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.warn('Link scraping warning:', error);
     // Return a graceful fallback link so the user's workflow is never interrupted
-    const urlStr = typeof url === 'string' ? url : '';
+    const urlStr = rawUrl;
     let host = 'External Link';
     try {
       host = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`).hostname;

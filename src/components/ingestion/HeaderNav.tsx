@@ -7,14 +7,15 @@ import { GithubIcon } from '@/components/icons/GithubIcon';
 interface HeaderNavProps {
   onLoadSample: () => void;
   isLoadingSample: boolean;
-  activeTab: 'ingest' | 'preview';
-  setActiveTab: (tab: 'ingest' | 'preview') => void;
+  activeTab: 'ingest' | 'preview' | 'studio';
+  setActiveTab: (tab: 'ingest' | 'preview' | 'studio') => void;
   totalSources: number;
+  hasProfile: boolean;
 }
 
 const STAGES = [
-  { id: 1, name: 'Multi-Source Ingestion', status: 'current', desc: 'GitHub, Resumes & Links' },
-  { id: 2, name: 'AI Synthesis', status: 'upcoming', desc: 'Master CV Schema' },
+  { id: 1, name: 'Multi-Source Ingestion', status: 'completed', desc: 'GitHub, Resumes & Links' },
+  { id: 2, name: 'AI Master Studio', status: 'current', desc: 'Normalized Schema & XYZ' },
   { id: 3, name: 'ATS Engine & Export', status: 'upcoming', desc: 'Resumly Check & PDF' },
   { id: 4, name: 'Contextual Tailoring', status: 'upcoming', desc: 'Job Description Match' },
   { id: 5, name: 'Application Tracker', status: 'upcoming', desc: 'Kanban Pipeline' },
@@ -82,12 +83,26 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 }`}
               >
                 <FileText className="h-3.5 w-3.5" />
-                Raw Staging Store
+                Staging Store
                 {totalSources > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-400/20 text-indigo-300">
                     {totalSources}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setActiveTab('studio')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                  activeTab === 'studio'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                Master CV Studio
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-purple-400/20 text-purple-300 font-bold uppercase">
+                  Stage 2
+                </span>
               </button>
             </div>
           </div>
@@ -98,12 +113,15 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           <div className="flex items-center gap-2 min-w-max pb-1">
             {STAGES.map((stage, idx) => {
               const isCurrent = stage.status === 'current';
+              const isCompleted = stage.status === 'completed';
               return (
                 <React.Fragment key={stage.id}>
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition ${
                       isCurrent
                         ? 'bg-indigo-950/40 border-indigo-500/40 text-indigo-200 ring-1 ring-indigo-500/20'
+                        : isCompleted
+                        ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
                         : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-500 opacity-60'
                     }`}
                   >
@@ -111,10 +129,12 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                       className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
                         isCurrent
                           ? 'bg-indigo-600 text-white'
+                          : isCompleted
+                          ? 'bg-emerald-600 text-white'
                           : 'bg-zinc-800 text-zinc-400'
                       }`}
                     >
-                      {stage.id}
+                      {isCompleted ? '✓' : stage.id}
                     </span>
                     <div className="flex flex-col text-left">
                       <span className="font-semibold leading-tight">{stage.name}</span>

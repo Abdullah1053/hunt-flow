@@ -112,26 +112,37 @@ export const ContextualTailorView: React.FC<ContextualTailorViewProps> = ({
   };
 
   // Save to application pipeline (stored in localStorage for Stage 5)
+  // Save to application pipeline (stored in localStorage for Stage 5)
   const handleSaveToPipeline = () => {
     try {
       const existingRaw = localStorage.getItem('huntflow_applications');
       const existing = existingRaw ? JSON.parse(existingRaw) : [];
+      const now = new Date().toISOString();
+      const score = tailoredCv ? tailoredCv.analysis.matchPercentage : baselineAnalysis.matchPercentage;
       const newApp = {
         id: `app_${Date.now()}`,
         jobTitle: currentJd.jobTitle,
         company: currentJd.company,
         location: currentJd.location,
         workType: currentJd.workType,
-        matchScore: tailoredCv ? tailoredCv.analysis.matchPercentage : baselineAnalysis.matchPercentage,
-        status: 'ready_to_apply',
-        appliedAt: null,
+        matchScore: score,
+        status: 'wishlist',
+        timeline: [
+          {
+            id: `evt_${Date.now()}`,
+            status: 'wishlist',
+            date: now,
+            note: `Created from Job Tailoring Studio with ${score}% match score`,
+          },
+        ],
         tailoredCvSnapshot: tailoredCv ? tailoredCv.profile : masterProfile,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
       existing.unshift(newApp);
       localStorage.setItem('huntflow_applications', JSON.stringify(existing));
       setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setTimeout(() => setSavedSuccess(false), 4000);
     } catch (e) {
       console.error('Error saving application:', e);
     }
@@ -172,11 +183,26 @@ export const ContextualTailorView: React.FC<ContextualTailorViewProps> = ({
           <button
             type="button"
             onClick={handleSaveToPipeline}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition ${
+              savedSuccess
+                ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700'
+            }`}
           >
             <BookmarkCheck className={`h-3.5 w-3.5 ${savedSuccess ? 'text-emerald-400' : 'text-zinc-400'}`} />
             {savedSuccess ? 'Saved to Pipeline!' : 'Save Application'}
           </button>
+
+          {onNavigateToStage5 && (
+            <button
+              type="button"
+              onClick={onNavigateToStage5}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition"
+            >
+              View Pipeline
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

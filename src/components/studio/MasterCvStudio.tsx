@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Sparkles,
   FileCode,
   Download,
+  Upload,
   Settings,
   Eye,
   Columns,
@@ -27,6 +28,7 @@ import { LiveAtsDocumentPreview } from './LiveAtsDocumentPreview';
 interface MasterCvStudioProps {
   profile: MasterCvProfile;
   onUpdateProfile: (updated: MasterCvProfile) => void;
+  onResetProfile?: () => void;
   onReSynthesize: () => void;
   isSynthesizing: boolean;
   apiKey: string;
@@ -37,6 +39,7 @@ interface MasterCvStudioProps {
 export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   profile,
   onUpdateProfile,
+  onResetProfile,
   onReSynthesize,
   isSynthesizing,
   apiKey,
@@ -49,6 +52,27 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   const [isSplitView, setIsSplitView] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [tempApiKey, setTempApiKey] = useState(apiKey);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed?.personalInfo && parsed?.skills) {
+          onUpdateProfile(parsed);
+        } else {
+          alert('Invalid Master CV JSON file structure.');
+        }
+      } catch (err: any) {
+        alert('Failed to read JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const handleOptimizeBullet = async (bullet: string, context?: string) => {
     try {
@@ -96,7 +120,11 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               Stage 2: Schema Normalization
             </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Auto-Saved to Browser
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
               {totalBullets} XYZ Bullets
             </span>
           </div>
@@ -133,10 +161,43 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             type="button"
             onClick={handleDownloadJson}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            title="Download your full Master CV as a JSON backup"
           >
             <Download className="h-3.5 w-3.5" />
             Export JSON
           </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            title="Load a previously saved Master CV JSON backup"
+          >
+            <Upload className="h-3.5 w-3.5 text-indigo-400" />
+            Import JSON
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportJson}
+            className="hidden"
+          />
+
+          {onResetProfile && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Reset CV to default baseline? This will clear local edits.')) {
+                  onResetProfile();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition"
+              title="Reset profile to original baseline"
+            >
+              Reset
+            </button>
+          )}
 
           <button
             type="button"

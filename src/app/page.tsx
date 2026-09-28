@@ -62,13 +62,21 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio' | 'ats' | 'tailor' | 'pipeline'>('pipeline');
   const [showGoalReport, setShowGoalReport] = useState(false);
 
-  // Restore API key from localStorage if present
+  // Restore API key and Master Profile from localStorage if present
   useEffect(() => {
     try {
       const savedKey = localStorage.getItem('huntflow_gemini_api_key');
       if (savedKey) setApiKey(savedKey);
-    } catch {
-      // ignore
+
+      const savedProfile = localStorage.getItem('huntflow_master_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed?.personalInfo?.fullName) {
+          setMasterProfile(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore from localStorage:', e);
     }
   }, []);
 
@@ -78,6 +86,25 @@ export default function HomePage() {
       localStorage.setItem('huntflow_gemini_api_key', newKey);
     } catch {
       // ignore
+    }
+  };
+
+  const handleUpdateMasterProfile = (updated: MasterCvProfile) => {
+    setMasterProfile(updated);
+    try {
+      localStorage.setItem('huntflow_master_profile', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save master profile to localStorage:', e);
+    }
+  };
+
+  const handleResetMasterProfile = () => {
+    try {
+      localStorage.removeItem('huntflow_master_profile');
+      const fresh = synthesizeDeterministicProfile(stagingPayload);
+      setMasterProfile(fresh);
+    } catch (e) {
+      console.error('Failed to reset master profile:', e);
     }
   };
 
@@ -107,17 +134,28 @@ export default function HomePage() {
       });
 
       const data = await res.json();
+      let profileToSet: MasterCvProfile;
       if (res.ok && data.profile) {
-        setMasterProfile(data.profile);
+        profileToSet = data.profile;
       } else {
         // Fallback to local deterministic profile
-        const local = synthesizeDeterministicProfile(stagingPayload);
-        setMasterProfile(local);
+        profileToSet = synthesizeDeterministicProfile(stagingPayload);
+      }
+      setMasterProfile(profileToSet);
+      try {
+        localStorage.setItem('huntflow_master_profile', JSON.stringify(profileToSet));
+      } catch {
+        // ignore
       }
     } catch (err) {
       console.warn('Synthesis request failed, utilizing local engine:', err);
       const local = synthesizeDeterministicProfile(stagingPayload);
       setMasterProfile(local);
+      try {
+        localStorage.setItem('huntflow_master_profile', JSON.stringify(local));
+      } catch {
+        // ignore
+      }
     } finally {
       setIsSynthesizing(false);
     }
@@ -280,6 +318,11 @@ export default function HomePage() {
       // 4. Generate Master CV Profile
       const initialProfile = synthesizeDeterministicProfile(stagingPayload);
       setMasterProfile(initialProfile);
+      try {
+        localStorage.setItem('huntflow_master_profile', JSON.stringify(initialProfile));
+      } catch {
+        // ignore
+      }
     } catch (error) {
       console.error('Error loading sample data:', error);
     } finally {
@@ -414,7 +457,8 @@ export default function HomePage() {
         {activeTab === 'studio' && (
           <MasterCvStudio
             profile={currentProfile}
-            onUpdateProfile={(updated) => setMasterProfile(updated)}
+            onUpdateProfile={handleUpdateMasterProfile}
+            onResetProfile={handleResetMasterProfile}
             onReSynthesize={handleSynthesizeProfile}
             isSynthesizing={isSynthesizing}
             apiKey={apiKey}
@@ -427,7 +471,7 @@ export default function HomePage() {
         {activeTab === 'ats' && (
           <AtsEngineView
             profile={currentProfile}
-            onUpdateProfile={(updated) => setMasterProfile(updated)}
+            onUpdateProfile={handleUpdateMasterProfile}
             onNavigateToStudio={() => setActiveTab('studio')}
           />
         )}

@@ -30,3 +30,86 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(82, 82, 91, 0.8);
 }
+
+/* ==========================================================================
+   ATS Resume Print Styles (Jake's Resume / Harvard Standard)
+   Ensures that only the clean document sheet is printed, hiding all
+   surrounding application UI (navigation, sidebars, buttons, form editors).
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  /* Force pure white background on the printed canvas */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Universal hide for all page chrome, headers, navbars, sidebars, inputs, buttons */
+  header,
+  nav,
+  aside,
+  footer,
+  button,
+  input,
+  textarea,
+  select,
+  dialog,
+  .no-print,
+  [data-no-print="true"],
+  .studio-editor-column,
+  .studio-header-bar,
+  .studio-tabs-bar {
+    display: none !important;
+  }
+
+  /* Reset main application layout container */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Remove dark container styling, shadows, and borders */
+  div {
+    border-color: transparent !important;
+  }
+
+  /* Ensure resume sheet is full width, centered, and pristine */
+  #ats-resume-document,
+  #tailored-ats-resume-sheet,
+  .printable-resume-sheet {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Avoid awkward page breaks in the middle of job/project entries */
+  .break-inside-avoid,
+  .avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+

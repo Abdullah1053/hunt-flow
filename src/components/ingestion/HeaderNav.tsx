@@ -31,7 +31,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenGoalReport,
 }) => {
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40">
+    <header className="no-print border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Logo & Tagline */}

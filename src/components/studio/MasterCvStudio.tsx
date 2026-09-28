@@ -88,8 +88,8 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Studio Header Bar */}
-      <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Studio Header Bar - Hidden from print */}
+      <div className="no-print p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-base font-bold text-white">Interactive Master CV Studio</h2>
@@ -163,8 +163,8 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
         </div>
       </div>
 
-      {/* Editor Section Navigation Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-zinc-800">
+      {/* Editor Section Navigation Tabs - Hidden from print */}
+      <div className="no-print flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-zinc-800">
         {[
           { id: 'personal', label: '1. Personal Info' },
           { id: 'skills', label: '2. Skills' },
@@ -190,9 +190,9 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
 
       {/* Main Studio Viewport */}
       {isSplitView ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-          {/* Left Column: Active Editor Section */}
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start print:block">
+          {/* Left Column: Active Editor Section - Hidden from print */}
+          <div className="no-print studio-editor-column space-y-6">
             {activeTab === 'personal' && (
               <PersonalInfoEditor
                 personalInfo={profile.personalInfo}
@@ -250,7 +250,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
           </div>
 
           {/* Right Column: Live ATS Document Preview */}
-          <div className="sticky top-20">
+          <div className="sticky top-20 print:static print:top-0 print:w-full">
             <LiveAtsDocumentPreview profile={profile} />
           </div>
         </div>

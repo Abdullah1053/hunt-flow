@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 import { TailoredCvProfile } from '@/types/tailoring';
 import {
@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   FileText,
   Layers,
+  Printer,
 } from 'lucide-react';
+import { printIsolatedElement } from '@/lib/pdf/printUtils';
 
 interface SideBySideDiffViewerProps {
   masterProfile: MasterCvProfile;
@@ -23,13 +25,21 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
   tailoredProfile,
 }) => {
   const [viewMode, setViewMode] = useState<'diff' | 'tailoredDocument'>('diff');
+  const printRef = useRef<HTMLDivElement>(null);
 
   const { profile: tailored } = tailoredProfile;
 
+  const handlePrintTailored = () => {
+    printIsolatedElement(
+      printRef.current,
+      `${tailored.personalInfo.fullName || 'Candidate'}_${tailoredProfile.company}_Tailored_Resume`
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {/* View Switcher Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-900 border border-zinc-800">
+      {/* View Switcher Header - Hidden from print */}
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-900 border border-zinc-800">
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
             <button
@@ -228,12 +238,28 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
 
       {/* MODE 2: TAILORED ATS DOCUMENT PREVIEW */}
       {viewMode === 'tailoredDocument' && (
-        <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800">
-          <div
-            id="tailored-ats-resume-sheet"
-            className="w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text"
-            style={{ fontFamily: "'Times New Roman', Times, serif" }}
-          >
+        <div className="space-y-4">
+          <div className="no-print flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+            <span className="text-xs text-zinc-300 font-medium">
+              Tailored ATS Document Preview ({tailoredProfile.company})
+            </span>
+            <button
+              type="button"
+              onClick={handlePrintTailored}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Print Tailored CV
+            </button>
+          </div>
+
+          <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 print:bg-white print:border-none print:p-0 print:m-0">
+            <div
+              ref={printRef}
+              id="tailored-ats-resume-sheet"
+              className="printable-resume-sheet w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
+              style={{ fontFamily: "'Times New Roman', Times, serif" }}
+            >
             {/* Header */}
             <div className="text-center pb-3">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-normal uppercase text-black">
@@ -372,6 +398,7 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
             </div>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

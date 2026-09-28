@@ -17,6 +17,7 @@ import {
   Sparkles,
   Loader2,
 } from 'lucide-react';
+import { printIsolatedElement } from '@/lib/pdf/printUtils';
 
 interface AtsEngineViewProps {
   profile: MasterCvProfile;
@@ -156,13 +157,16 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(
+      printRef.current,
+      `${personalInfo.fullName || 'Candidate'}_ATS_Resume`
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-lg">
+      {/* Header Bar - Hidden from print */}
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-lg">
         <div>
           <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2.5">
             <ShieldCheck className="h-6 w-6 text-emerald-400" />
@@ -202,8 +206,8 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
 
       {/* Main Split Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: ATS Score & Auditing Checklist (5 cols) */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* Left Column: ATS Score & Auditing Checklist (5 cols) - Hidden from print */}
+        <div className="no-print lg:col-span-5 space-y-6">
           <AtsScoreCard
             audit={audit}
             onNavigateToStudio={onNavigateToStudio}
@@ -264,11 +268,11 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
 
           {/* TAB 1: Real-time ATS Document Preview (Jake's Resume / Harvard Standard) */}
           {activeTab === 'document' && (
-            <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800">
+            <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 print:bg-white print:border-none print:p-0 print:m-0">
               <div
                 ref={printRef}
                 id="ats-resume-document"
-                className="w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
+                className="printable-resume-sheet w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
                 style={{ fontFamily: "'Times New Roman', Times, serif" }}
               >
                 {/* HEADER */}

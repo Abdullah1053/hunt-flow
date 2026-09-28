@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 import { Printer, Download, Eye, ExternalLink, EyeOff } from 'lucide-react';
+import { printIsolatedElement } from '@/lib/pdf/printUtils';
 
 interface LiveAtsDocumentPreviewProps {
   profile: MasterCvProfile;
@@ -12,7 +13,10 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(
+      printRef.current,
+      `${profile.personalInfo.fullName || 'Candidate'}_ATS_Resume`
+    );
   };
 
   const { personalInfo, skills, experience, projects, education, certifications } = profile;
@@ -40,8 +44,8 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
 
   return (
     <div className="space-y-4">
-      {/* Top action bar */}
-      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+      {/* Top action bar - Hidden from print */}
+      <div className="no-print flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
         <div className="flex items-center gap-2.5 text-xs text-zinc-300">
           <Eye className="h-4 w-4 text-indigo-400" />
           <span>ATS Document Preview (Jake&apos;s Resume / Harvard Standard)</span>
@@ -63,11 +67,11 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
       </div>
 
       {/* Printable Sheet */}
-      <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800">
+      <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 print:bg-white print:border-none print:p-0 print:m-0">
         <div
           ref={printRef}
           id="ats-resume-document"
-          className="w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
+          className="printable-resume-sheet w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
           style={{ fontFamily: "'Times New Roman', Times, serif" }}
         >
           {/* HEADER */}

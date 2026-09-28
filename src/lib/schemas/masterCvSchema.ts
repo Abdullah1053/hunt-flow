@@ -29,6 +29,8 @@ export const WorkExperienceItemSchema = z.object({
   endDate: z.string().default('Present'),
   isCurrent: z.boolean().default(false),
   bullets: z.array(z.string()).default([]),
+  isHidden: z.boolean().default(false).optional(),
+  hiddenBullets: z.array(z.number()).default([]).optional(),
 });
 
 export const ProjectItemSchema = z.object({
@@ -42,6 +44,8 @@ export const ProjectItemSchema = z.object({
   endDate: z.string().optional(),
   impactMetric: z.string().optional(),
   bullets: z.array(z.string()).default([]),
+  isHidden: z.boolean().default(false).optional(),
+  hiddenBullets: z.array(z.number()).default([]).optional(),
 });
 
 export const EducationItemSchema = z.object({

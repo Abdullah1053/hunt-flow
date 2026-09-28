@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MasterCvProfile } from '@/types/masterCv';
+import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 import { TailoredCvProfile } from '@/types/tailoring';
 import {
   GitCompare,
@@ -120,13 +120,13 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
             </div>
 
             {/* Experience Bullets Preview */}
-            {masterProfile.experience[0] && (
+            {masterProfile.experience.filter(isItemVisible)[0] && (
               <div className="space-y-1.5">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                  Top Role: {masterProfile.experience[0].company} ({masterProfile.experience[0].role})
+                  Top Role: {masterProfile.experience.filter(isItemVisible)[0].company} ({masterProfile.experience.filter(isItemVisible)[0].role})
                 </span>
                 <ul className="space-y-1 text-xs text-zinc-400 p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 list-disc list-inside">
-                  {masterProfile.experience[0].bullets.slice(0, 3).map((b, idx) => (
+                  {getVisibleBullets(masterProfile.experience.filter(isItemVisible)[0]).slice(0, 3).map((b, idx) => (
                     <li key={idx} className="line-clamp-2">
                       {b}
                     </li>
@@ -203,7 +203,7 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
             </div>
 
             {/* Prioritized Experience Bullets */}
-            {tailored.experience[0] && (
+            {tailored.experience.filter(isItemVisible)[0] && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
@@ -214,7 +214,7 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
                   </span>
                 </div>
                 <ul className="space-y-1 text-xs text-indigo-200 p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 list-disc list-inside">
-                  {tailored.experience[0].bullets.slice(0, 3).map((b, idx) => (
+                  {getVisibleBullets(tailored.experience.filter(isItemVisible)[0]).slice(0, 3).map((b, idx) => (
                     <li key={idx} className="line-clamp-2">
                       {b}
                     </li>
@@ -266,67 +266,71 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
             </div>
 
             {/* Experience */}
-            <div className="mt-4">
-              <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
-                Experience
-              </h2>
-              <div className="space-y-3 mt-1.5">
-                {tailored.experience.map((exp) => (
-                  <div key={exp.id}>
-                    <div className="flex justify-between items-baseline text-xs">
-                      <span className="font-bold text-black">{exp.role}</span>
-                      <span className="text-[11px] font-sans text-zinc-700">
-                        {exp.startDate} – {exp.endDate}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-baseline text-xs italic text-zinc-800">
-                      <span>{exp.company}</span>
-                      <span className="not-italic text-[11px] font-sans text-zinc-700">
-                        {exp.location}
-                      </span>
-                    </div>
-                    <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
-                      {exp.bullets.map((bullet, bIdx) => (
-                        <li key={bIdx} className="pl-0.5 text-justify">
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Projects */}
-            <div className="mt-4">
-              <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
-                Projects & Technical Initiatives
-              </h2>
-              <div className="space-y-2 mt-1.5">
-                {tailored.projects.map((proj) => (
-                  <div key={proj.id}>
-                    <div className="flex justify-between items-baseline text-xs">
-                      <div>
-                        <span className="font-bold text-black">{proj.title}</span>
-                        <span className="font-sans text-[11px] text-zinc-700 ml-1.5 font-normal">
-                          | {proj.techStack.join(', ')}
+            {tailored.experience.filter(isItemVisible).length > 0 && (
+              <div className="mt-4">
+                <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
+                  Experience
+                </h2>
+                <div className="space-y-3 mt-1.5">
+                  {tailored.experience.filter(isItemVisible).map((exp) => (
+                    <div key={exp.id}>
+                      <div className="flex justify-between items-baseline text-xs">
+                        <span className="font-bold text-black">{exp.role}</span>
+                        <span className="text-[11px] font-sans text-zinc-700">
+                          {exp.startDate} – {exp.endDate}
                         </span>
                       </div>
-                      <span className="text-[11px] font-sans text-zinc-700">
-                        {proj.startDate} {proj.endDate ? `– ${proj.endDate}` : ''}
-                      </span>
+                      <div className="flex justify-between items-baseline text-xs italic text-zinc-800">
+                        <span>{exp.company}</span>
+                        <span className="not-italic text-[11px] font-sans text-zinc-700">
+                          {exp.location}
+                        </span>
+                      </div>
+                      <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
+                        {getVisibleBullets(exp).map((bullet, bIdx) => (
+                          <li key={bIdx} className="pl-0.5 text-justify">
+                            {bullet}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
-                      {proj.bullets.map((bullet, bIdx) => (
-                        <li key={bIdx} className="pl-0.5 text-justify">
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Projects */}
+            {tailored.projects.filter(isItemVisible).length > 0 && (
+              <div className="mt-4">
+                <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
+                  Projects & Technical Initiatives
+                </h2>
+                <div className="space-y-2 mt-1.5">
+                  {tailored.projects.filter(isItemVisible).map((proj) => (
+                    <div key={proj.id}>
+                      <div className="flex justify-between items-baseline text-xs">
+                        <div>
+                          <span className="font-bold text-black">{proj.title}</span>
+                          <span className="font-sans text-[11px] text-zinc-700 ml-1.5 font-normal">
+                            | {proj.techStack.join(', ')}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-sans text-zinc-700">
+                          {proj.startDate} {proj.endDate ? `– ${proj.endDate}` : ''}
+                        </span>
+                      </div>
+                      <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
+                        {getVisibleBullets(proj).map((bullet, bIdx) => (
+                          <li key={bIdx} className="pl-0.5 text-justify">
+                            {bullet}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Skills */}
             <div className="mt-4">

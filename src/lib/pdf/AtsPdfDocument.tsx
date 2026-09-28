@@ -8,7 +8,7 @@ import {
   Link,
   Font,
 } from '@react-pdf/renderer';
-import { MasterCvProfile } from '@/types/masterCv';
+import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 
 // Styles for ATS-compliant vector PDF (Jake's Resume / Harvard standard)
 const styles = StyleSheet.create({
@@ -147,7 +147,13 @@ interface AtsPdfDocumentProps {
 }
 
 export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
-  const { personalInfo, skills, experience, projects, education, certifications } = profile;
+  const { personalInfo = {} as any, skills = {} as any, experience = [], projects = [], education = [], certifications = [] } = profile || {};
+
+  const languages = skills?.languages || [];
+  const frameworks = skills?.frameworks || [];
+  const databases = skills?.databases || [];
+  const devopsAndCloud = skills?.devopsAndCloud || [];
+  const toolsAndConcepts = skills?.toolsAndConcepts || [];
 
   // Build contact parts
   const contactParts: { text: string; href?: string }[] = [];
@@ -235,105 +241,115 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         )}
 
         {/* WORK EXPERIENCE */}
-        {experience.length > 0 && (
+        {experience.filter(isItemVisible).length > 0 && (
           <View>
             <Text style={styles.sectionTitle}>Work Experience</Text>
-            {experience.map((exp) => (
-              <View key={exp.id} style={styles.entryBlock} wrap={false}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.titleBold}>{exp.company}</Text>
-                  <Text style={styles.dateText}>
-                    {exp.startDate} – {exp.endDate}
-                  </Text>
-                </View>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.subtitleItalic}>{exp.role}</Text>
-                  <Text style={styles.locationText}>{exp.location}</Text>
-                </View>
-                <View style={styles.bulletList}>
-                  {exp.bullets.map((bullet, bIdx) => (
-                    <View key={bIdx} style={styles.bulletRow}>
-                      <Text style={styles.bulletDot}>•</Text>
-                      <Text style={styles.bulletContent}>{bullet}</Text>
+            {experience.filter(isItemVisible).map((exp) => {
+              const visibleBullets = getVisibleBullets(exp);
+              return (
+                <View key={exp.id} style={styles.entryBlock} wrap={false}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.titleBold}>{exp.company}</Text>
+                    <Text style={styles.dateText}>
+                      {exp.startDate} – {exp.endDate}
+                    </Text>
+                  </View>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.subtitleItalic}>{exp.role}</Text>
+                    <Text style={styles.locationText}>{exp.location}</Text>
+                  </View>
+                  {visibleBullets.length > 0 && (
+                    <View style={styles.bulletList}>
+                      {visibleBullets.map((bullet, bIdx) => (
+                        <View key={bIdx} style={styles.bulletRow}>
+                          <Text style={styles.bulletDot}>•</Text>
+                          <Text style={styles.bulletContent}>{bullet}</Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
         {/* PROJECTS */}
-        {projects.length > 0 && (
+        {projects.filter(isItemVisible).length > 0 && (
           <View>
             <Text style={styles.sectionTitle}>Key Projects</Text>
-            {projects.map((proj) => (
-              <View key={proj.id} style={styles.entryBlock} wrap={false}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.titleBold}>
-                    {proj.title}
-                    {proj.techStack.length > 0
-                      ? ` | ${proj.techStack.join(', ')}`
-                      : ''}
-                  </Text>
-                  {proj.startDate && (
-                    <Text style={styles.dateText}>
-                      {proj.startDate} – {proj.endDate || 'Present'}
+            {projects.filter(isItemVisible).map((proj) => {
+              const visibleBullets = getVisibleBullets(proj);
+              return (
+                <View key={proj.id} style={styles.entryBlock} wrap={false}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.titleBold}>
+                      {proj.title}
+                      {proj.techStack.length > 0
+                        ? ` | ${proj.techStack.join(', ')}`
+                        : ''}
+                    </Text>
+                    {proj.startDate && (
+                      <Text style={styles.dateText}>
+                        {proj.startDate} – {proj.endDate || 'Present'}
+                      </Text>
+                    )}
+                  </View>
+                  {proj.impactMetric && (
+                    <Text style={[styles.subtitleItalic, { fontSize: 8.5, marginBottom: 1 }]}>
+                      Impact: {proj.impactMetric}
                     </Text>
                   )}
-                </View>
-                {proj.impactMetric && (
-                  <Text style={[styles.subtitleItalic, { fontSize: 8.5, marginBottom: 1 }]}>
-                    Impact: {proj.impactMetric}
-                  </Text>
-                )}
-                <View style={styles.bulletList}>
-                  {proj.bullets.map((bullet, bIdx) => (
-                    <View key={bIdx} style={styles.bulletRow}>
-                      <Text style={styles.bulletDot}>•</Text>
-                      <Text style={styles.bulletContent}>{bullet}</Text>
+                  {visibleBullets.length > 0 && (
+                    <View style={styles.bulletList}>
+                      {visibleBullets.map((bullet, bIdx) => (
+                        <View key={bIdx} style={styles.bulletRow}>
+                          <Text style={styles.bulletDot}>•</Text>
+                          <Text style={styles.bulletContent}>{bullet}</Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
         {/* TECHNICAL SKILLS */}
         <View wrap={false}>
           <Text style={styles.sectionTitle}>Technical Skills</Text>
-          {skills.languages.length > 0 && (
+          {languages.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Languages:</Text>
-              <Text style={styles.skillValues}>{skills.languages.join(', ')}</Text>
+              <Text style={styles.skillValues}>{languages.join(', ')}</Text>
             </View>
           )}
-          {skills.frameworks.length > 0 && (
+          {frameworks.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Frameworks & Libraries:</Text>
-              <Text style={styles.skillValues}>{skills.frameworks.join(', ')}</Text>
+              <Text style={styles.skillValues}>{frameworks.join(', ')}</Text>
             </View>
           )}
-          {skills.databases.length > 0 && (
+          {databases.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Databases & Optimization:</Text>
-              <Text style={styles.skillValues}>{skills.databases.join(', ')}</Text>
+              <Text style={styles.skillValues}>{databases.join(', ')}</Text>
             </View>
           )}
-          {skills.devopsAndCloud.length > 0 && (
+          {devopsAndCloud.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>DevOps & Infrastructure:</Text>
               <Text style={styles.skillValues}>
-                {skills.devopsAndCloud.join(', ')}
+                {devopsAndCloud.join(', ')}
               </Text>
             </View>
           )}
-          {skills.toolsAndConcepts.length > 0 && (
+          {toolsAndConcepts.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Architecture & Concepts:</Text>
               <Text style={styles.skillValues}>
-                {skills.toolsAndConcepts.join(', ')}
+                {toolsAndConcepts.join(', ')}
               </Text>
             </View>
           )}

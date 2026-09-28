@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
-import { MasterCvProfile } from '@/types/masterCv';
+import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 import { runAtsAudit } from '@/lib/atsEngine/atsScorer';
 import { AtsScoreCard } from './AtsScoreCard';
 import {
@@ -75,20 +75,22 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
       lines.push('');
     }
 
-    if (experience.length > 0) {
+    const visibleExp = experience.filter(isItemVisible);
+    if (visibleExp.length > 0) {
       lines.push('PROFESSIONAL EXPERIENCE');
-      experience.forEach((exp) => {
+      visibleExp.forEach((exp) => {
         lines.push(`${exp.company} - ${exp.role} | ${exp.location || ''} | ${exp.startDate} - ${exp.endDate}`);
-        exp.bullets.forEach((b) => lines.push(`  * ${b}`));
+        getVisibleBullets(exp).forEach((b) => lines.push(`  * ${b}`));
         lines.push('');
       });
     }
 
-    if (projects.length > 0) {
+    const visibleProj = projects.filter(isItemVisible);
+    if (visibleProj.length > 0) {
       lines.push('PROJECTS & TECHNICAL INITIATIVES');
-      projects.forEach((proj) => {
+      visibleProj.forEach((proj) => {
         lines.push(`${proj.title} | ${proj.techStack.join(', ')} | ${proj.role || ''} | ${proj.startDate || ''} - ${proj.endDate || ''}`);
-        proj.bullets.forEach((b) => lines.push(`  * ${b}`));
+        getVisibleBullets(proj).forEach((b) => lines.push(`  * ${b}`));
         lines.push('');
       });
     }
@@ -345,13 +347,13 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
                 )}
 
                 {/* EXPERIENCE */}
-                {experience.length > 0 && (
+                {experience.filter(isItemVisible).length > 0 && (
                   <div className="mt-4">
                     <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
                       Experience
                     </h2>
                     <div className="space-y-3 mt-1.5">
-                      {experience.map((exp) => (
+                      {experience.filter(isItemVisible).map((exp) => (
                         <div key={exp.id}>
                           <div className="flex justify-between items-baseline text-xs">
                             <span className="font-bold text-black">{exp.role}</span>
@@ -364,7 +366,7 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
                             <span className="not-italic text-[11px] font-sans text-zinc-700">{exp.location}</span>
                           </div>
                           <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
-                            {exp.bullets.map((bullet, bIdx) => (
+                            {getVisibleBullets(exp).map((bullet, bIdx) => (
                               <li key={bIdx} className="pl-0.5 text-justify">
                                 {bullet}
                               </li>
@@ -377,13 +379,13 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
                 )}
 
                 {/* PROJECTS */}
-                {projects.length > 0 && (
+                {projects.filter(isItemVisible).length > 0 && (
                   <div className="mt-4">
                     <h2 className="text-xs font-sans font-bold tracking-wider uppercase border-b border-black pb-0.5 text-black">
                       Projects & Technical Initiatives
                     </h2>
                     <div className="space-y-2.5 mt-1.5">
-                      {projects.map((proj) => (
+                      {projects.filter(isItemVisible).map((proj) => (
                         <div key={proj.id}>
                           <div className="flex justify-between items-baseline text-xs">
                             <div>
@@ -399,7 +401,7 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
                             </span>
                           </div>
                           <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5 text-[12px] text-zinc-800 leading-snug">
-                            {proj.bullets.map((bullet, bIdx) => (
+                            {getVisibleBullets(proj).map((bullet, bIdx) => (
                               <li key={bIdx} className="pl-0.5 text-justify">
                                 {bullet}
                               </li>

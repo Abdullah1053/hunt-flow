@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { MasterCvProfile } from '@/types/masterCv';
-import { Printer, Download, Eye, ExternalLink } from 'lucide-react';
+import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
+import { Printer, Download, Eye, ExternalLink, EyeOff } from 'lucide-react';
 
 interface LiveAtsDocumentPreviewProps {
   profile: MasterCvProfile;
@@ -17,6 +17,18 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
 
   const { personalInfo, skills, experience, projects, education, certifications } = profile;
 
+  // Calculate hidden items and bullets count
+  const hiddenExpCount = experience.filter((e) => e.isHidden).length;
+  const hiddenProjCount = projects.filter((p) => p.isHidden).length;
+  const hiddenExpBulletsCount = experience
+    .filter(isItemVisible)
+    .reduce((acc, curr) => acc + (curr.hiddenBullets?.length || 0), 0);
+  const hiddenProjBulletsCount = projects
+    .filter(isItemVisible)
+    .reduce((acc, curr) => acc + (curr.hiddenBullets?.length || 0), 0);
+  const totalHiddenCount =
+    hiddenExpCount + hiddenProjCount + hiddenExpBulletsCount + hiddenProjBulletsCount;
+
   // Format contact info items with clean separators
   const contactParts: { text: string; href?: string }[] = [];
   if (personalInfo.location) contactParts.push({ text: personalInfo.location });
@@ -30,9 +42,15 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
     <div className="space-y-4">
       {/* Top action bar */}
       <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-        <div className="flex items-center gap-2 text-xs text-zinc-300">
+        <div className="flex items-center gap-2.5 text-xs text-zinc-300">
           <Eye className="h-4 w-4 text-indigo-400" />
           <span>ATS Document Preview (Jake&apos;s Resume / Harvard Standard)</span>
+          {totalHiddenCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+              <EyeOff className="h-3 w-3" />
+              {totalHiddenCount} hidden from preview
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -139,77 +157,87 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
           )}
 
           {/* WORK EXPERIENCE */}
-          {experience.length > 0 && (
+          {experience.filter(isItemVisible).length > 0 && (
             <div className="mt-3.5">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
                 Work Experience
               </h2>
               <div className="space-y-3">
-                {experience.map((exp) => (
-                  <div key={exp.id} className="text-[11px]">
-                    <div className="flex justify-between items-baseline font-bold text-black">
-                      <span>{exp.company}</span>
-                      <span className="font-normal font-sans text-[10px] text-zinc-800">
-                        {exp.startDate} – {exp.endDate}
-                      </span>
+                {experience.filter(isItemVisible).map((exp) => {
+                  const visibleBullets = getVisibleBullets(exp);
+                  return (
+                    <div key={exp.id} className="text-[11px]">
+                      <div className="flex justify-between items-baseline font-bold text-black">
+                        <span>{exp.company}</span>
+                        <span className="font-normal font-sans text-[10px] text-zinc-800">
+                          {exp.startDate} – {exp.endDate}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-baseline italic text-zinc-800 mb-1">
+                        <span>{exp.role}</span>
+                        <span className="not-italic text-[10px] text-zinc-700 font-sans">
+                          {exp.location}
+                        </span>
+                      </div>
+                      {visibleBullets.length > 0 && (
+                        <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal">
+                          {visibleBullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-justify">
+                              {bullet}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    <div className="flex justify-between items-baseline italic text-zinc-800 mb-1">
-                      <span>{exp.role}</span>
-                      <span className="not-italic text-[10px] text-zinc-700 font-sans">
-                        {exp.location}
-                      </span>
-                    </div>
-                    <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal">
-                      {exp.bullets.map((bullet, bIdx) => (
-                        <li key={bIdx} className="text-justify">
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
           {/* PROJECTS */}
-          {projects.length > 0 && (
+          {projects.filter(isItemVisible).length > 0 && (
             <div className="mt-3.5">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
                 Key Projects
               </h2>
               <div className="space-y-3">
-                {projects.map((proj) => (
-                  <div key={proj.id} className="text-[11px]">
-                    <div className="flex justify-between items-baseline font-bold text-black">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>{proj.title}</span>
-                        {proj.techStack.length > 0 && (
-                          <span className="font-normal italic text-zinc-700 text-[10px]">
-                            | {proj.techStack.join(', ')}
+                {projects.filter(isItemVisible).map((proj) => {
+                  const visibleBullets = getVisibleBullets(proj);
+                  return (
+                    <div key={proj.id} className="text-[11px]">
+                      <div className="flex justify-between items-baseline font-bold text-black">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{proj.title}</span>
+                          {proj.techStack.length > 0 && (
+                            <span className="font-normal italic text-zinc-700 text-[10px]">
+                              | {proj.techStack.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        {proj.startDate && (
+                          <span className="font-normal font-sans text-[10px] text-zinc-800 shrink-0">
+                            {proj.startDate} – {proj.endDate || 'Present'}
                           </span>
                         )}
                       </div>
-                      {proj.startDate && (
-                        <span className="font-normal font-sans text-[10px] text-zinc-800 shrink-0">
-                          {proj.startDate} – {proj.endDate || 'Present'}
-                        </span>
+                      {proj.impactMetric && (
+                        <p className="text-[10px] font-sans font-semibold text-zinc-700 italic mt-0.5">
+                          Impact: {proj.impactMetric}
+                        </p>
+                      )}
+                      {visibleBullets.length > 0 && (
+                        <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal mt-1">
+                          {visibleBullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-justify">
+                              {bullet}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
-                    {proj.impactMetric && (
-                      <p className="text-[10px] font-sans font-semibold text-zinc-700 italic mt-0.5">
-                        Impact: {proj.impactMetric}
-                      </p>
-                    )}
-                    <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal mt-1">
-                      {proj.bullets.map((bullet, bIdx) => (
-                        <li key={bIdx} className="text-justify">
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

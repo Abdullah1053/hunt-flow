@@ -27,6 +27,8 @@ export interface WorkExperienceItem {
   endDate: string;
   isCurrent: boolean;
   bullets: string[];
+  isHidden?: boolean;
+  hiddenBullets?: number[];
 }
 
 export interface ProjectItem {
@@ -40,6 +42,19 @@ export interface ProjectItem {
   endDate?: string;
   impactMetric?: string;
   bullets: string[];
+  isHidden?: boolean;
+  hiddenBullets?: number[];
+}
+
+export function isItemVisible(item?: { isHidden?: boolean } | null): boolean {
+  return !item?.isHidden;
+}
+
+export function getVisibleBullets(item?: { bullets: string[]; hiddenBullets?: number[] } | null): string[] {
+  if (!item || !item.bullets) return [];
+  if (!item.hiddenBullets || item.hiddenBullets.length === 0) return item.bullets;
+  const hidden = new Set(item.hiddenBullets);
+  return item.bullets.filter((_, idx) => !hidden.has(idx));
 }
 
 export interface EducationItem {

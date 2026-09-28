@@ -7,6 +7,7 @@ import { DocumentIngestCard } from '@/components/ingestion/DocumentIngestCard';
 import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
 import { StagingPayloadView } from '@/components/ingestion/StagingPayloadView';
 import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
+import { AtsEngineView } from '@/components/ats/AtsEngineView';
 import { synthesizePayload } from '@/lib/corpusAggregator';
 import { synthesizeDeterministicProfile } from '@/lib/deterministicSynthesizer';
 import {
@@ -54,7 +55,7 @@ export default function HomePage() {
 
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio'>('ingest');
+  const [activeTab, setActiveTab] = useState<'ingest' | 'preview' | 'studio' | 'ats'>('ingest');
   const [showGoalReport, setShowGoalReport] = useState(false);
 
   // Restore API key from localStorage if present
@@ -298,27 +299,28 @@ export default function HomePage() {
         setActiveTab={setActiveTab}
         totalSources={stagingPayload.metrics.totalSources}
         hasProfile={Boolean(masterProfile)}
+        onOpenGoalReport={() => setShowGoalReport(true)}
       />
 
       {/* Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Banner with Goal 2 Status & Review Action */}
-        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-purple-950/50 via-zinc-900 to-indigo-950/40 border border-purple-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Banner with Goal 3 Status & Review Action */}
+        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-zinc-900 to-teal-950/40 border border-emerald-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
-              <Sparkles className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm sm:text-base font-semibold text-white">
-                  Stage 2: AI Parsing, Synthesis & Master CV Studio
+                  Stage 3: ATS-Certified CV Engine & Vector PDF Export
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Ready For Review
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Gemini AI schema extraction, Google XYZ formula bullet point rewriting & interactive studio are live.
+                Resumly compliance audit, Harvard/Jake&apos;s single-column ATS typography & instant vector PDF generator are active.
               </p>
             </div>
           </div>
@@ -328,22 +330,22 @@ export default function HomePage() {
               onClick={() => setShowGoalReport(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
             >
-              <ClipboardList className="h-3.5 w-3.5 text-purple-400" />
-              View Stage 2 Goal Report
+              <ClipboardList className="h-3.5 w-3.5 text-emerald-400" />
+              View Stage 3 Goal Report
             </button>
 
-            {activeTab !== 'studio' && (
+            {activeTab !== 'ats' && (
               <button
                 onClick={() => {
                   if (!masterProfile) {
                     handleSynthesizeProfile();
                   }
-                  setActiveTab('studio');
+                  setActiveTab('ats');
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/20 transition"
               >
-                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                Launch Master CV Studio
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-200" />
+                Launch ATS & PDF Studio
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
@@ -413,27 +415,36 @@ export default function HomePage() {
             isSynthesizing={isSynthesizing}
             apiKey={apiKey}
             onUpdateApiKey={handleUpdateApiKey}
-            onProceedToStage3={() => setShowGoalReport(true)}
+            onProceedToStage3={() => setActiveTab('ats')}
+          />
+        )}
+
+        {/* Tab 4: ATS Engine & Vector PDF Studio */}
+        {activeTab === 'ats' && (
+          <AtsEngineView
+            profile={currentProfile}
+            onUpdateProfile={(updated) => setMasterProfile(updated)}
+            onNavigateToStudio={() => setActiveTab('studio')}
           />
         )}
       </main>
 
-      {/* Stage 2 Goal Report Modal */}
+      {/* Stage 3 Goal Report Modal */}
       {showGoalReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-3xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">
-                    Stage 2 Goal Report & Verification Review
+                    Stage 3 Goal Report & Verification Review
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    Master CV Schema Normalization, XYZ Bullet Optimizer & Studio Editor
+                    ATS-Certified CV Engine, Resumly Compliance Audit & Native Vector PDF Export
                   </p>
                 </div>
               </div>
@@ -453,14 +464,14 @@ export default function HomePage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-emerald-300">
-                    Stage 2 Objective Fully Completed & Verified
+                    Stage 3 Objective Fully Completed & Verified
                   </h3>
                   <p className="text-xs text-emerald-400/90 mt-1 leading-relaxed">
                     All requirements from{' '}
                     <code className="bg-emerald-950 px-1 py-0.5 rounded text-emerald-200">
                       implementation_plan.md
                     </code>{' '}
-                    under Stage 2 (Gemini API synthesis endpoint, Master CV Zod schema, Google XYZ Formula bullet optimizer, and interactive Master CV Studio with split-view ATS rendering) have been constructed and verified.
+                    under Stage 3 (Resumly compliance criteria, authentic vector PDF generation with selectable text and hyperlinks, single-column Jake&apos;s/Harvard standard, and real-time ATS score auditing) have been built and tested with real candidate data.
                   </p>
                 </div>
               </div>
@@ -468,17 +479,17 @@ export default function HomePage() {
               {/* Deliverables Checklist */}
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-                  Stage 2 Deliverables Verification Checklist
+                  Stage 3 Deliverables Verification Checklist
                 </h4>
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        1. Strict Master CV Zod / JSON Schema
+                        1. Resumly Criteria ATS Compliance Scorer (`src/lib/atsEngine/atsScorer.ts`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Constructed schema validating <code className="text-purple-300">personalInfo</code>, <code className="text-purple-300">skills</code> (5 categories: Languages, Frameworks, Databases, DevOps, Tools), <code className="text-purple-300">experience</code>, <code className="text-purple-300">projects</code>, <code className="text-purple-300">education</code>, and <code className="text-purple-300">certifications</code>.
+                        Implemented 5-dimension automated audit: Contact Info (15 pts), Heading Nomenclature (15 pts), XYZ Action Verbs & Quantifiable Metrics (35 pts), Length & Word Density (15 pts), and Typography/Single-Column Structure (20 pts).
                       </p>
                     </div>
                   </div>
@@ -487,10 +498,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        2. Gemini AI Synthesis API (`/api/cv/extract-profile`)
+                        2. Native Vector PDF Generation Engine (`@react-pdf/renderer`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Integrated Gemini 2.5 Flash via official <code className="text-purple-300">@google/genai</code> SDK with system instructions enforcing strict factual grounding and structured JSON generation, paired with a deterministic local synthesizer fallback.
+                        Constructed <code className="text-emerald-300">AtsPdfDocument.tsx</code> and streaming binary route <code className="text-emerald-300">/api/cv/download-pdf</code>. Generates genuine vector PDF with selectable text, clickable hyperlinks, and zero image rasterization.
                       </p>
                     </div>
                   </div>
@@ -499,10 +510,10 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        3. Google XYZ Formula Bullet Optimizer (`/api/cv/optimize-bullet`)
+                        3. Interactive Circular Score Meter & Actionable Checklist (`AtsScoreCard.tsx`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Rewrites project and role achievements into high-impact ATS phrasing: <em>“Accomplished [X], as measured by [Y], by doing [Z]”</em> with active verbs and quantifiable metrics. Live &quot;⚡ AI Optimize&quot; button available on each individual bullet point.
+                        Dynamic SVG circular progress ring color-coded by grade (Elite, Pass, Moderate, Warning), Resumly category progress meters, word count density checks, and interactive optimization recommendations.
                       </p>
                     </div>
                   </div>
@@ -511,24 +522,24 @@ export default function HomePage() {
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold text-zinc-200 text-xs sm:text-sm">
-                        4. Interactive Master CV Studio & Live ATS Paper Renderer
+                        4. Split-Screen Studio & Raw Parser Inspector (`AtsEngineView.tsx`)
                       </span>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Full-featured Studio editor with real-time field editing, tag managers, bullet point controls, side-by-side split view, print-to-PDF formatting (Jake&apos;s Resume / Harvard Overleaf standard), and JSON backup download.
+                        Side-by-side view with instant 1-click vector PDF download, live ATS printable sheet preview, and a Workday/Taleo/Greenhouse text parser stream simulator to guarantee zero broken columns.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* What Happens Next in Stage 3 */}
+              {/* What Happens Next in Stage 4 */}
               <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
                 <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs mb-1">
                   <Cpu className="h-4 w-4 text-indigo-400" />
-                  Next Phase: Stage 3 (ATS-Certified CV Engine & Vector PDF Export)
+                  Next Phase: Stage 4 (Contextual Job Tailoring Engine & Match Scorer)
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Upon your approval of this Stage 2 report, we will proceed to Stage 3: building the pixel-perfect selectable text vector PDF export engine, and integrating the automated Resumly-style ATS Health Audit scoring metrics.
+                  Upon your approval of this Stage 3 report, we will proceed to Stage 4: pasting Job Descriptions, computing real-time JD Match Scores, extracting required keywords, and dynamically tailoring the Master CV for targeted job openings without corrupting the Master profile.
                 </p>
               </div>
             </div>

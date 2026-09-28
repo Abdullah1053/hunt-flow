@@ -229,3 +229,42 @@ export function synthesizeDeterministicProfile(
     },
   };
 }
+
+export function getDefaultMasterProfile(): MasterCvProfile {
+  return synthesizeDeterministicProfile({
+    candidateName: 'Abdullah Ademi',
+    documents: [],
+    github: {
+      user: {
+        id: 1053,
+        login: 'abdullah1053',
+        name: 'Abdullah Ademi',
+        bio: 'Full-Stack Software Engineer',
+        location: 'Sanaa, Yemen',
+        html_url: 'https://github.com/abdullah1053',
+        blog: 'https://abdullah1053.github.io',
+        avatar_url: '',
+        company: null,
+        public_repos: 12,
+        followers: 5,
+        following: 5,
+      },
+      repos: [],
+      selectedRepoIds: [],
+      aggregatedSummary: 'Full-stack software engineer with experience in Laravel, Vue.js, PostgreSQL and Docker',
+    },
+    links: [],
+    manualNotes: '',
+    aggregatedCorpus: 'Abdullah Ademi Full-Stack Software Engineer abdullah.mughni1999@gmail.com +967 771882350 Laravel Vue.js PostgreSQL Docker Sanaa Yemen',
+    lastUpdated: new Date().toISOString(),
+    metrics: {
+      totalSources: 2,
+      totalWords: 150,
+      totalCharacters: 800,
+      githubReposCount: 0,
+      documentsCount: 0,
+      linksCount: 0,
+      detectedKeywords: ['Laravel', 'Vue.js', 'TypeScript', 'PHP', 'PostgreSQL', 'Docker'],
+    },
+  });
+}

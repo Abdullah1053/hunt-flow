@@ -41,8 +41,8 @@ const CATEGORIES: {
   },
   {
     key: 'toolsAndConcepts',
-    label: 'Architecture, Concepts & Tools',
-    placeholder: 'e.g. RESTful APIs, Webhooks, Real-Time Systems, Agile',
+    label: 'Security & Architecture',
+    placeholder: 'e.g. OAuth, JWT, SSL/TLS, AWS IAM, RESTful APIs, Webhooks',
     color: 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10',
   },
 ];

@@ -27,7 +27,7 @@ export function synthesizeDeterministicProfile(
 
   const location =
     ghUser?.location ||
-    (rawCorpus.includes('Sanaa') ? 'Sanaa, Yemen' : 'Remote / Global');
+    'Sana\'a / Yemen, Remote / Global';
 
   const githubUrl = ghUser?.html_url || 'https://github.com/abdullah1053';
   const website = ghUser?.blog || 'https://abdullah1053.github.io';
@@ -36,14 +36,14 @@ export function synthesizeDeterministicProfile(
   const languages = Array.from(
     new Set([
       'PHP',
-      'TypeScript',
       'JavaScript (ES6+)',
+      'TypeScript',
       'SQL',
+      'HTML5/CSS3',
       'Dart',
       'C++',
-      'HTML5/CSS3',
       ...(stagingPayload.metrics.detectedKeywords.filter((k) =>
-        ['TypeScript', 'PHP', 'JavaScript', 'Python', 'Dart', 'C++'].includes(k)
+        ['PHP', 'JavaScript', 'TypeScript', 'SQL', 'Dart', 'C++'].includes(k)
       ) || []),
     ])
   );
@@ -51,42 +51,53 @@ export function synthesizeDeterministicProfile(
   const frameworks = Array.from(
     new Set([
       'Laravel',
-      'Vue.js',
+      'ReactJS',
       'Next.js',
       'Node.js',
       'Express',
       'TailwindCSS',
+      'Vue.js',
       ...(stagingPayload.metrics.detectedKeywords.filter((k) =>
-        ['Laravel', 'Vue.js', 'Next.js', 'React', 'Node.js', 'TailwindCSS'].includes(k)
+        ['Laravel', 'ReactJS', 'React', 'Next.js', 'Node.js', 'TailwindCSS', 'Vue.js'].includes(k)
       ) || []),
     ])
   );
 
   const databases = Array.from(
-    new Set(['PostgreSQL', 'MySQL', 'Redis', 'Database Design', 'Query Optimization'])
+    new Set([
+      'MySQL',
+      'MongoDB',
+      'PostgreSQL',
+      'Redis',
+      'Database Indexing',
+      'Query Optimization',
+      'Backup Strategies',
+    ])
   );
 
   const devopsAndCloud = Array.from(
     new Set([
+      'AWS (EC2, S3, RDS, IAM)',
       'Docker',
       'CI/CD Pipelines',
-      'Linux Server Administration',
       'Nginx',
       'Caddy',
       'PM2',
-      'Cloud Platforms (AWS / GCP)',
+      'Cloud Platforms (GCP)',
     ])
   );
 
   const toolsAndConcepts = Array.from(
     new Set([
-      'RESTful API Design',
+      'OAuth',
+      'Token-based Authentication (Sanctum/JWT)',
+      'SSL/TLS',
+      'AWS IAM',
+      'RESTful APIs',
       'Webhook Architectures',
-      'Real-Time Systems',
       'Microservices',
-      'System Architecture',
-      'Agile / Scrum',
-      'Git Workflow',
+      'Agile/Scrum',
+      'Git',
     ])
   );
 
@@ -101,12 +112,12 @@ export function synthesizeDeterministicProfile(
       endDate: 'Present',
       isCurrent: true,
       bullets: [
-        'Architected and implemented scalable full-stack web systems handling 15,000+ real-time transactions by engineering reactive Vue.js frontends and decoupled Laravel microservices.',
-        'Built and maintained high-throughput RESTful APIs powering mobile and web clients, reducing response latency by 35% via Redis caching and optimized database query execution.',
-        'Automated CI/CD deployment pipelines on Linux production servers utilizing Docker, Nginx, and Caddy, eliminating 90% of manual deployment overhead.',
-        'Engineered secure, scalable webhook handling architectures to dispatch and sync live order statuses across distributed merchant and logistics endpoints.',
-        'Spearheaded Agile sprint planning and led peer code reviews for a 6-developer team, boosting release velocity by 25% while maintaining strict lint and architecture standards.',
-        'Mentored junior engineers on API design principles and query profiling, improving overall engineering output and team test coverage.',
+        'Configured and managed AWS cloud environments (EC2, RDS MySQL, S3), ensuring 99.9% uptime, scalability, and automated data backups.',
+        'Developed dynamic, responsive user interfaces using ReactJS, integrating RESTful backend endpoints to optimize state management and client-side performance.',
+        'Secured backend services and APIs using token-based authentication (OAuth, Laravel Sanctum) and implemented role-based access control with AWS IAM.',
+        'Delivered and maintained 10+ production web and mobile applications, supporting multiple interconnected systems by contributing across backend, frontend, API, database, and mobile development.',
+        'Improved production system reliability and operational efficiency by optimizing database operations, resolving critical production issues, and strengthening deployment, monitoring, and maintenance workflows.',
+        'Accelerated end-to-end product delivery across web and mobile platforms by implementing reusable APIs, third-party integrations, automated workflows, and streamlined release processes for Android and iOS applications.',
       ],
     },
   ];
@@ -117,32 +128,34 @@ export function synthesizeDeterministicProfile(
       id: 'proj_ecommerce_doing',
       title: 'Doing Scalable E-Commerce Platform',
       role: 'Lead Backend & System Engineer',
-      techStack: ['Laravel', 'Vue.js', 'PostgreSQL', 'Redis', 'Docker'],
+      techStack: ['TypeScript', 'ReactJS/Next.js', 'Node.js', 'PostgreSQL/MySQL', 'AWS (EC2/S3)'],
       githubUrl: 'https://github.com/abdullah1053',
       demoUrl: '',
       startDate: '2023',
       endDate: 'Present',
       impactMetric: 'Scaled to 10k+ SKU catalog with sub-80ms search latency',
       bullets: [
-        'Engineered a scalable multi-tenant e-commerce platform processing dynamic carts, inventory checks, and third-party payment workflows with 99.9% uptime.',
-        'Optimized PostgreSQL query schemas and relational indexing, decreasing checkout query latency by 42% under concurrent traffic loads.',
-        'Built reactive frontend customer interfaces with Vue.js and TailwindCSS, improving mobile user conversion and time-on-page metrics.',
+        'Optimized MySQL/PostgreSQL queries, schema indexing, and caching with Redis to achieve sub-80ms search latency.',
+        'Designed and implemented scalable APIs and backend services using modern TypeScript, Node.js, and ReactJS/Next.js.',
+        'Improved development and deployment workflows using containerization, process management, and AWS cloud deployment tools.',
+        'Participated in code reviews, Git-based collaboration, feature development, debugging, and production support.',
       ],
     },
     {
-      id: 'proj_ondemand_delivery',
-      title: 'On-Demand Delivery & Webhook Dispatch Platform',
-      role: 'Full-Stack Architect',
-      techStack: ['Laravel', 'Node.js', 'Webhooks', 'MySQL', 'Caddy'],
+      id: 'proj_yalla_fast',
+      title: 'Yalla Fast Platform',
+      role: 'Full-Stack Architect & Backend Engineer',
+      techStack: ['MySQL', 'PHP/Laravel', 'AWS (S3/RDS)', 'Webhooks', 'REST APIs', 'Flutter'],
       githubUrl: 'https://github.com/abdullah1053',
       demoUrl: '',
       startDate: '2023',
       endDate: '2024',
       impactMetric: 'Automated 100% of driver dispatch workflows with live webhook callbacks',
       bullets: [
-        'Designed an event-driven delivery platform architecture supporting real-time driver tracking, automated dispatch queues, and store integrations.',
-        'Developed a self-serve onboarding and verification workflow for third-party courier companies, reducing merchant integration time from 3 days to under 1 hour.',
-        'Implemented cryptographically verified webhook delivery with automated exponential-backoff retries, achieving zero lost dispatch events across 50,000+ orders.',
+        'Built robust backend logic and webhooks using PHP Laravel, deploying media assets directly to AWS S3 and managing database instances via AWS RDS.',
+        'Worked with REST APIs and third-party integrations to connect mobile and web applications with backend services.',
+        'Supported application deployment, troubleshooting, maintenance, and production releases across web and mobile platforms.',
+        'Managed and supported mobile application releases and publishing workflows for Google Play Store and Apple App Store.',
       ],
     },
   ];
@@ -171,12 +184,12 @@ export function synthesizeDeterministicProfile(
   const education = [
     {
       id: 'edu_cs_degree',
-      institution: 'Sanaa University / Faculty of Computer Science',
+      institution: 'University of Science and Technology / Faculty of Computer Science',
       degree: "Bachelor's Degree in Computer Science",
       field: 'Computer Science & Software Engineering',
-      startDate: 'Jan 2020',
-      endDate: 'Jan 2023',
-      gpa: 'Excellent with Honors',
+      startDate: 'Jan 2018',
+      endDate: 'Jan 2022',
+      gpa: 'Very Good',
       achievements: [
         'Core Focus: Data Structures & Algorithms, Distributed Systems, Database Management Systems, Software Engineering Methodologies',
       ],
@@ -199,7 +212,7 @@ export function synthesizeDeterministicProfile(
   return {
     personalInfo: {
       fullName,
-      headline: 'Full-Stack Software Engineer | Scalable Architectures & APIs',
+      headline: 'FULL-STACK DEVELOPER (PHP/LARAVEL & REACTJS) | AWS & CLOUD ARCHITECTURE',
       email,
       phone,
       location,
@@ -207,7 +220,7 @@ export function synthesizeDeterministicProfile(
       github: githubUrl,
       linkedin: 'https://linkedin.com/in/abdullah1053',
       summary:
-        'Full-Stack Software Engineer with 3+ years of experience architecting scalable web applications, high-throughput RESTful APIs, and real-time webhook systems using Laravel, Vue.js, and modern cloud technologies. Proven track record of optimizing database queries, automating CI/CD pipelines, and leading collaborative Agile engineering sprints.',
+        'Full-Stack Software Engineer with 4+ years of experience designing, scaling, and maintaining production web applications using PHP (Laravel) and ReactJS. Proven expertise in deploying and optimizing AWS cloud infrastructure (EC2, RDS, S3), designing high-performance MySQL and MongoDB databases, and implementing secure token-based authentication (OAuth/JWT). Adept at leading CI/CD automation, API integrations, and Agile cross-functional collaboration.',
     },
     skills: {
       languages,
@@ -239,8 +252,8 @@ export function getDefaultMasterProfile(): MasterCvProfile {
         id: 1053,
         login: 'abdullah1053',
         name: 'Abdullah Ademi',
-        bio: 'Full-Stack Software Engineer',
-        location: 'Sanaa, Yemen',
+        bio: 'Full-Stack Developer (PHP/Laravel & ReactJS) | AWS & Cloud Architecture',
+        location: 'Sana\'a / Yemen, Remote / Global',
         html_url: 'https://github.com/abdullah1053',
         blog: 'https://abdullah1053.github.io',
         avatar_url: '',
@@ -251,20 +264,20 @@ export function getDefaultMasterProfile(): MasterCvProfile {
       },
       repos: [],
       selectedRepoIds: [],
-      aggregatedSummary: 'Full-stack software engineer with experience in Laravel, Vue.js, PostgreSQL and Docker',
+      aggregatedSummary: 'Full-stack software engineer with 4+ years experience in PHP (Laravel), ReactJS, AWS (EC2, S3, RDS), MySQL, and MongoDB',
     },
     links: [],
     manualNotes: '',
-    aggregatedCorpus: 'Abdullah Ademi Full-Stack Software Engineer abdullah.mughni1999@gmail.com +967 771882350 Laravel Vue.js PostgreSQL Docker Sanaa Yemen',
+    aggregatedCorpus: 'Abdullah Ademi Full-Stack Developer (PHP/Laravel & ReactJS) | AWS & Cloud Architecture abdullah.mughni1999@gmail.com +967 771882350 PHP Laravel ReactJS AWS EC2 S3 RDS MySQL MongoDB Docker OAuth Sanctum Sanaa Yemen',
     lastUpdated: new Date().toISOString(),
     metrics: {
       totalSources: 2,
-      totalWords: 150,
-      totalCharacters: 800,
+      totalWords: 160,
+      totalCharacters: 900,
       githubReposCount: 0,
       documentsCount: 0,
       linksCount: 0,
-      detectedKeywords: ['Laravel', 'Vue.js', 'TypeScript', 'PHP', 'PostgreSQL', 'Docker'],
+      detectedKeywords: ['PHP', 'Laravel', 'ReactJS', 'AWS', 'EC2', 'S3', 'RDS', 'MySQL', 'MongoDB', 'Docker', 'OAuth'],
     },
   });
 }

@@ -347,7 +347,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
           )}
           {toolsAndConcepts.length > 0 && (
             <View style={styles.skillCategoryRow}>
-              <Text style={styles.skillLabel}>Architecture & Concepts:</Text>
+              <Text style={styles.skillLabel}>Security & Architecture:</Text>
               <Text style={styles.skillValues}>
                 {toolsAndConcepts.join(', ')}
               </Text>

@@ -104,6 +104,46 @@ export function getSampleJobApplications(): JobApplicationRecord[] {
 
   return [
     {
+      id: 'app_techwealth_fullstack',
+      company: 'TechWealth',
+      jobTitle: 'Full-Stack Developer (PHP/Laravel & ReactJS) with AWS',
+      location: 'Remote',
+      workType: 'remote',
+      salaryRange: '$110,000 - $130,000 USD',
+      jobUrl: 'https://techwealth.com/careers/fullstack-php-react-aws',
+      status: 'technical',
+      matchScore: 99,
+      appliedDate: '2026-09-28',
+      lastFollowUp: '2026-10-02',
+      recruiterName: 'David Chen',
+      recruiterEmail: 'david.chen@techwealth.com',
+      interviewNotes:
+        'ATS passed with 99% keyword match (PHP/Laravel, ReactJS, AWS EC2/RDS/S3, MySQL/MongoDB, OAuth). System design interview scheduled focusing on AWS infrastructure scaling and token authentication.',
+      timeline: [
+        {
+          id: 'tl_tw_1',
+          status: 'applied',
+          date: '2026-09-28',
+          note: 'Submitted tailored resume matching exact TechWealth stack: PHP/Laravel, ReactJS, AWS (EC2/RDS/S3), MySQL/MongoDB.',
+        },
+        {
+          id: 'tl_tw_2',
+          status: 'screening',
+          date: '2026-10-01',
+          note: 'HR phone screen completed. Discussed 4+ years full-stack experience and AWS architecture.',
+        },
+        {
+          id: 'tl_tw_3',
+          status: 'technical',
+          date: '2026-10-03',
+          note: 'Technical panel interview scheduled on AWS cloud deployment, Laravel APIs, and React performance.',
+        },
+      ],
+      tailoredCvSnapshot: baseProfile,
+      createdAt: '2026-09-28T09:00:00Z',
+      updatedAt: '2026-10-03T11:00:00Z',
+    },
+    {
       id: 'app_fintech_velocity',
       company: 'FinTech Velocity Inc.',
       jobTitle: 'Senior Full-Stack Software Engineer (Laravel & Vue.js)',

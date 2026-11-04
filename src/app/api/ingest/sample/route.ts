@@ -42,7 +42,7 @@ export async function GET() {
       document: doc,
       recommendedGithubUsername: 'abdullah1053',
       recommendedBio:
-        'Full-Stack Software Engineer with experience building scalable web applications, APIs, and real-time systems using Laravel, Vue.js, and modern web technologies.',
+        'Full-Stack Developer (PHP/Laravel & ReactJS) with 4+ years of experience designing, scaling, and maintaining production web applications using PHP (Laravel), ReactJS, and AWS (EC2, RDS, S3).',
     });
   } catch (error) {
     console.error('Error loading sample CV:', error);

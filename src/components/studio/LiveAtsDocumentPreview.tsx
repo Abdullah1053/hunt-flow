@@ -275,7 +275,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
               )}
               {skills.toolsAndConcepts.length > 0 && (
                 <div>
-                  <strong className="text-black">Architecture & Concepts:</strong>{' '}
+                  <strong className="text-black">Security & Architecture:</strong>{' '}
                   {skills.toolsAndConcepts.join(', ')}
                 </div>
               )}

@@ -2,20 +2,14 @@
 
 import React, { useState, useRef } from 'react';
 import {
-  Sparkles,
-  FileCode,
   Download,
   Upload,
   Settings,
-  Eye,
   Columns,
-  Layers,
-  CheckCircle2,
   Key,
   X,
-  ArrowRight,
-  ShieldCheck,
-  RotateCcw,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { MasterCvProfile } from '@/types/masterCv';
 import { PersonalInfoEditor } from './PersonalInfoEditor';
@@ -28,30 +22,28 @@ import { LiveAtsDocumentPreview } from './LiveAtsDocumentPreview';
 interface MasterCvStudioProps {
   profile: MasterCvProfile;
   onUpdateProfile: (updated: MasterCvProfile) => void;
-  onResetProfile?: () => void;
   onReSynthesize: () => void;
   isSynthesizing: boolean;
   apiKey: string;
   onUpdateApiKey: (key: string) => void;
-  onProceedToStage3: () => void;
+  onProceedToStage3?: () => void;
 }
 
 export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   profile,
   onUpdateProfile,
-  onResetProfile,
   onReSynthesize,
   isSynthesizing,
   apiKey,
   onUpdateApiKey,
-  onProceedToStage3,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'personal' | 'skills' | 'experience' | 'projects' | 'education' | 'preview'
   >('personal');
-  const [isSplitView, setIsSplitView] = useState(false);
+  const [isSplitView, setIsSplitView] = useState(true);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [tempApiKey, setTempApiKey] = useState(apiKey);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,69 +91,108 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute(
       'download',
-      `master_cv_${profile.personalInfo.fullName.replace(/\s+/g, '_')}.json`
+      `master_cv_${(profile.personalInfo.fullName || 'Candidate').replace(/\s+/g, '_')}.json`
     );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
-  const totalBullets =
-    profile.experience.reduce((acc, curr) => acc + curr.bullets.length, 0) +
-    profile.projects.reduce((acc, curr) => acc + curr.bullets.length, 0);
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloadingPdf(true);
+      const res = await fetch('/api/cv/download-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to generate PDF document');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (profile.personalInfo.fullName || 'Candidate').replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      a.download = `${safeName}_ATS_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error('PDF download error:', err);
+      alert('Error generating PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Studio Header Bar - Hidden from print */}
-      <div className="no-print p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Studio Header Bar */}
+      <div className="no-print p-4 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-bold text-white">Interactive Master CV Studio</h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Stage 2: Schema Normalization
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Auto-Saved to Browser
-            </span>
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-400" />
+              CV Studio
+            </h2>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
-              {totalBullets} XYZ Bullets
+              {profile.personalInfo.fullName || 'Draft CV'}
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Full manual review, real-time field edits & instant ATS document rendering
+            Edit your sections, preview in real-time, and download your 100% copy-pasteable ATS PDF
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Primary High-Contrast Download ATS PDF Button */}
           <button
             type="button"
-            onClick={() => {
-              setTempApiKey(apiKey);
-              setShowSettingsModal(true);
-            }}
-            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-            title="Gemini API Key Settings"
+            onClick={handleDownloadPdf}
+            disabled={isDownloadingPdf}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-400 hover:bg-emerald-300 text-zinc-950 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
+            title="Download ATS/LinkedIn-readable PDF"
           >
-            <Settings className="h-4 w-4" />
+            {isDownloadingPdf ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 text-zinc-950" />
+                Download ATS PDF
+              </>
+            )}
           </button>
 
           <button
             type="button"
-            onClick={onReSynthesize}
-            disabled={isSynthesizing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition disabled:opacity-50"
+            onClick={() => setIsSplitView(!isSplitView)}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+              isSplitView
+                ? 'bg-zinc-800 text-white border-zinc-600 shadow-sm'
+                : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+            }`}
+            title="Toggle side-by-side Editor & ATS Document Preview"
           >
-            <RotateCcw className={`h-3.5 w-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
-            {isSynthesizing ? 'Synthesizing...' : 'Re-Synthesize Profile'}
+            <Columns className="h-3.5 w-3.5" />
+            Split View
           </button>
 
           <button
             type="button"
             onClick={handleDownloadJson}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-            title="Download your full Master CV as a JSON backup"
+            title="Download your full CV as a JSON backup"
           >
             <Download className="h-3.5 w-3.5" />
             Export JSON
@@ -171,7 +202,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-            title="Load a previously saved Master CV JSON backup"
+            title="Load a saved CV JSON file"
           >
             <Upload className="h-3.5 w-3.5 text-indigo-400" />
             Import JSON
@@ -184,47 +215,21 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             className="hidden"
           />
 
-          {onResetProfile && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Reset CV to default baseline? This will clear local edits.')) {
-                  onResetProfile();
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition"
-              title="Reset profile to original baseline"
-            >
-              Reset
-            </button>
-          )}
-
           <button
             type="button"
-            onClick={() => setIsSplitView(!isSplitView)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
-              isSplitView
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
-                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
-            }`}
-            title="Toggle side-by-side Editor & ATS Document Preview"
+            onClick={() => {
+              setTempApiKey(apiKey);
+              setShowSettingsModal(true);
+            }}
+            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            title="Gemini API Key Settings"
           >
-            <Columns className="h-3.5 w-3.5" />
-            Split View
-          </button>
-
-          <button
-            type="button"
-            onClick={onProceedToStage3}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/20 transition"
-          >
-            Stage 2 Review & Next
-            <ArrowRight className="h-3.5 w-3.5" />
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Editor Section Navigation Tabs - Hidden from print */}
+      {/* Editor Section Navigation Tabs */}
       <div className="no-print flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-zinc-800">
         {[
           { id: 'personal', label: '1. Personal Info' },
@@ -252,7 +257,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
       {/* Main Studio Viewport */}
       {isSplitView ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start print:block">
-          {/* Left Column: Active Editor Section - Hidden from print */}
+          {/* Left Column: Active Editor Section */}
           <div className="no-print studio-editor-column space-y-6">
             {activeTab === 'personal' && (
               <PersonalInfoEditor
@@ -382,34 +387,26 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded text-zinc-400 hover:text-white"
+                className="text-zinc-400 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Enter your Google Gemini API key to enable live LLM synthesis and XYZ formula bullet point rewriting. If left empty, HuntFlow operates seamlessly via the intelligent deterministic engine.
+            <p className="text-xs text-zinc-400">
+              Enter your Google Gemini API key to enable AI bullet rewriting and schema extraction.
             </p>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
-                Gemini API Key
-              </label>
-              <input
-                type="password"
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                placeholder="AIzaSy..."
-                className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
-              />
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2">
+            <input
+              type="password"
+              value={tempApiKey}
+              onChange={(e) => setTempApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+            />
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                className="px-3 py-1.5 text-xs rounded-lg text-zinc-400 hover:text-white"
+                className="px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white"
               >
                 Cancel
               </button>
@@ -419,7 +416,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
                   onUpdateApiKey(tempApiKey.trim());
                   setShowSettingsModal(false);
                 }}
-                className="px-4 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
               >
                 Save Key
               </button>

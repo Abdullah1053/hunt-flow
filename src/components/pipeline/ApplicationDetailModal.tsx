@@ -1,25 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
-import { JobApplicationRecord, ApplicationStatus } from '@/types/pipeline';
-import { PIPELINE_STAGES } from '@/data/samplePipeline';
+import React, { useState, useRef } from 'react';
+import {
+  JobApplicationRecord,
+  JobApplicationStatus,
+  APPLICATION_STATUS_CONFIG,
+} from '@/types/pipeline';
 import {
   X,
-  Building,
-  Briefcase,
-  MapPin,
-  Calendar,
-  Mail,
-  User,
   ExternalLink,
   Download,
+  Upload,
   Trash2,
-  Plus,
-  Clock,
-  Sparkles,
+  Calendar,
+  Building,
+  Briefcase,
   FileText,
-  DollarSign,
-  Loader2,
+  CheckCircle2,
+  Edit3,
 } from 'lucide-react';
 
 interface ApplicationDetailModalProps {
@@ -28,6 +26,7 @@ interface ApplicationDetailModalProps {
   onClose: () => void;
   onUpdate: (updated: JobApplicationRecord) => void;
   onDelete: (id: string) => void;
+  onLoadCvInStudio?: (snapshot: any) => void;
 }
 
 export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
@@ -36,456 +35,309 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   onClose,
   onUpdate,
   onDelete,
+  onLoadCvInStudio,
 }) => {
-  const [status, setStatus] = useState<ApplicationStatus>(application.status);
-  const [salaryRange, setSalaryRange] = useState(application.salaryRange || '');
-  const [recruiterName, setRecruiterName] = useState(application.recruiterName || '');
-  const [recruiterEmail, setRecruiterEmail] = useState(application.recruiterEmail || '');
-  const [interviewNotes, setInterviewNotes] = useState(application.interviewNotes || '');
-  const [newTimelineNote, setNewTimelineNote] = useState('');
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'timeline' | 'snapshot'>('details');
+  const [status, setStatus] = useState<JobApplicationStatus>(application.status);
+  const [jobTitle, setJobTitle] = useState(application.jobTitle);
+  const [company, setCompany] = useState(application.company);
+  const [jobUrl, setJobUrl] = useState(application.jobUrl || '');
+  const [jobDescription, setJobDescription] = useState(application.jobDescription || '');
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | undefined>(application.submittedPdfDataUrl);
+  const [pdfFileName, setPdfFileName] = useState<string>(
+    application.submittedPdfFileName || `${application.company}_Resume.pdf`
+  );
+  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
+  const handleDownloadPdf = async () => {
+    try {
+      if (pdfDataUrl) {
+        // Direct download from stored data URL
+        const a = document.createElement('a');
+        a.href = pdfDataUrl;
+        a.download = pdfFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // If no dataUrl stored but snapshot exists, generate via API
+      if (application.tailoredCvSnapshot) {
+        const res = await fetch('/api/cv/download-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: application.tailoredCvSnapshot }),
+        });
+        if (!res.ok) throw new Error('Failed to generate PDF');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = pdfFileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        return;
+      }
+
+      alert('No PDF file or snapshot attached to this application.');
+    } catch (e: any) {
+      alert('Could not download PDF: ' + e.message);
+    }
+  };
+
+  const handleReplacePdf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Please choose a valid PDF file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPdfDataUrl(event.target?.result as string);
+        setPdfFileName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = () => {
-    let updatedTimeline = [...application.timeline];
-
-    // If status changed, record timeline event automatically
-    if (status !== application.status) {
-      const stageConfig = PIPELINE_STAGES.find((s) => s.id === status);
-      updatedTimeline.push({
-        id: `tl_${Date.now()}`,
-        status,
-        date: new Date().toISOString().split('T')[0],
-        note: `Status updated to ${stageConfig?.label || status}.`,
-      });
-    }
-
-    if (newTimelineNote.trim()) {
-      updatedTimeline.push({
-        id: `tl_note_${Date.now()}`,
-        status,
-        date: new Date().toISOString().split('T')[0],
-        note: newTimelineNote.trim(),
-      });
-      setNewTimelineNote('');
-    }
-
     const updated: JobApplicationRecord = {
       ...application,
+      jobTitle: jobTitle.trim(),
+      company: company.trim(),
+      jobUrl: jobUrl.trim(),
+      jobDescription: jobDescription.trim(),
       status,
-      salaryRange,
-      recruiterName,
-      recruiterEmail,
-      interviewNotes,
-      timeline: updatedTimeline,
-      updatedAt: new Date().toISOString(),
+      submittedPdfDataUrl: pdfDataUrl,
+      submittedPdfFileName: pdfFileName,
     };
-
     onUpdate(updated);
     onClose();
   };
 
-  const handleDownloadSubmittedPdf = async () => {
-    try {
-      setIsDownloadingPdf(true);
-      const res = await fetch('/api/cv/download-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: application.tailoredCvSnapshot }),
-      });
-
-      if (!res.ok) throw new Error('Failed to generate PDF');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeName = (application.tailoredCvSnapshot.personalInfo.fullName || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const safeCompany = application.company.replace(/[^a-zA-Z0-9_-]/g, '_');
-      a.download = `${safeName}_${safeCompany}_Submitted_Resume.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (e: any) {
-      console.error(e);
-      alert('Could not download PDF: ' + e.message);
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  };
-
-  const currentStage = PIPELINE_STAGES.find((s) => s.id === status);
+  const statusConfig = APPLICATION_STATUS_CONFIG[status] || APPLICATION_STATUS_CONFIG.applied;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              <Building className="h-5 w-5" />
+      <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-lg font-bold text-white">{company}</h2>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border flex items-center gap-1.5 ${statusConfig.badgeClass}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dotColor}`} />
+                {statusConfig.label}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white">{application.company}</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {application.matchScore}% Match
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400">{application.jobTitle}</p>
+            <p className="text-sm text-zinc-300 font-medium mt-0.5">{jobTitle}</p>
+            <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3 text-zinc-500" />
+                Applied on {application.appliedDate}
+              </span>
+              {jobUrl && (
+                <a
+                  href={jobUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Open Job Posting
+                </a>
+              )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        {/* Modal Navigation Sub-tabs */}
-        <div className="px-6 pt-3 flex items-center gap-2 border-b border-zinc-800 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('details')}
-            className={`pb-2.5 font-semibold transition border-b-2 ${
-              activeTab === 'details'
-                ? 'border-indigo-500 text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Job Details & Contacts
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('timeline')}
-            className={`pb-2.5 font-semibold transition border-b-2 flex items-center gap-1.5 ${
-              activeTab === 'timeline'
-                ? 'border-indigo-500 text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Timeline & Notes
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-zinc-800 text-zinc-300">
-              {application.timeline.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('snapshot')}
-            className={`pb-2.5 font-semibold transition border-b-2 flex items-center gap-1.5 ${
-              activeTab === 'snapshot'
-                ? 'border-indigo-500 text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <FileText className="h-3.5 w-3.5 text-indigo-400" />
-            Linked CV Snapshot
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            {/* Quick Status Dropdown */}
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as JobApplicationStatus)}
+              className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-semibold text-zinc-200 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="applied">Applied</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-4 text-xs">
-          {/* TAB 1: DETAILS */}
-          {activeTab === 'details' && (
-            <div className="space-y-4">
-              {/* Pipeline Status Selector */}
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">
-                  Current Pipeline Stage
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {PIPELINE_STAGES.map((stg) => {
-                    const isSelected = status === stg.id;
-                    return (
-                      <button
-                        key={stg.id}
-                        type="button"
-                        onClick={() => setStatus(stg.id)}
-                        className={`p-2.5 rounded-xl border text-left font-medium transition ${
-                          isSelected
-                            ? `${stg.bgColor} ${stg.borderColor} ${stg.color} ring-1 ring-current`
-                            : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        <div className="font-bold">{stg.label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Compensation & Work Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Salary / Compensation Range
-                  </label>
-                  <div className="relative">
-                    <DollarSign className="h-3.5 w-3.5 text-zinc-500 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={salaryRange}
-                      onChange={(e) => setSalaryRange(e.target.value)}
-                      placeholder="e.g. $95,000 - $110,000 USD"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Location & Work Policy
-                  </label>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300">
-                    <MapPin className="h-3.5 w-3.5 text-zinc-500" />
-                    <span>{application.location}</span>
-                    <span className="ml-auto px-1.5 py-0.5 rounded text-[10px] bg-zinc-900 border border-zinc-800 capitalize">
-                      {application.workType}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recruiter Contacts */}
+        <div className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+          {/* Metadata quick edit toggle */}
+          {isEditingMetadata ? (
+            <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
+              <div className="font-semibold text-zinc-300">Edit Application Details</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Recruiter / Hiring Manager Name
-                  </label>
-                  <div className="relative">
-                    <User className="h-3.5 w-3.5 text-zinc-500 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={recruiterName}
-                      onChange={(e) => setRecruiterName(e.target.value)}
-                      placeholder="e.g. Sarah Jenkins"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Company Name</label>
+                  <input
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-xs"
+                  />
                 </div>
-
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                    Recruiter Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="h-3.5 w-3.5 text-zinc-500 absolute left-3 top-2.5" />
-                    <input
-                      type="email"
-                      value={recruiterEmail}
-                      onChange={(e) => setRecruiterEmail(e.target.value)}
-                      placeholder="e.g. sarah@company.com"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
-                    />
-                  </div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Job Title</label>
+                  <input
+                    type="text"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-xs"
+                  />
                 </div>
               </div>
-
-              {/* Notes & Prep Questions */}
               <div>
-                <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-                  Interview Notes & Target Preparation
-                </label>
-                <textarea
-                  rows={4}
-                  value={interviewNotes}
-                  onChange={(e) => setInterviewNotes(e.target.value)}
-                  placeholder="Record questions asked, team structure, tech stack hints, or salary negotiation notes..."
-                  className="w-full p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-sans text-xs"
+                <label className="text-[11px] text-zinc-400 block mb-1">Job Posting URL</label>
+                <input
+                  type="url"
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white text-xs"
                 />
               </div>
-
-              {/* External Link */}
-              {application.jobUrl && (
-                <div className="pt-1">
-                  <a
-                    href={application.jobUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-xs font-semibold"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Open Original Job Posting ({application.jobUrl})
-                  </a>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => setIsEditingMetadata(false)}
+                className="text-xs text-indigo-400 hover:underline"
+              >
+                Done Editing Details
+              </button>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditingMetadata(true)}
+              className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-xs"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Edit Job Title / Link
+            </button>
           )}
 
-          {/* TAB 2: TIMELINE */}
-          {activeTab === 'timeline' && (
-            <div className="space-y-4">
-              {/* Event Add Input */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTimelineNote}
-                  onChange={(e) => setNewTimelineNote(e.target.value)}
-                  placeholder="Log an update (e.g. 'Completed 2nd tech interview with Engineering Lead')..."
-                  className="flex-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs focus:outline-none focus:border-indigo-500"
-                />
+          {/* Section 1: Submitted PDF File */}
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-zinc-200 flex items-center gap-2 text-xs">
+                <FileText className="h-4 w-4 text-emerald-400" />
+                Submitted PDF File
+              </span>
+              <span className="text-[11px] text-zinc-400">{pdfFileName}</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/30 transition"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download Submitted PDF
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 transition"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Replace PDF File
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleReplacePdf}
+                className="hidden"
+              />
+
+              {application.tailoredCvSnapshot && onLoadCvInStudio && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (newTimelineNote.trim()) {
-                      const updatedTimeline = [
-                        ...application.timeline,
-                        {
-                          id: `tl_add_${Date.now()}`,
-                          status,
-                          date: new Date().toISOString().split('T')[0],
-                          note: newTimelineNote.trim(),
-                        },
-                      ];
-                      onUpdate({
-                        ...application,
-                        timeline: updatedTimeline,
-                      });
-                      setNewTimelineNote('');
-                    }
+                    onLoadCvInStudio(application.tailoredCvSnapshot);
+                    onClose();
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 transition"
+                  title="Load this job's tailored CV snapshot directly into CV Builder"
                 >
-                  <Plus className="h-4 w-4" />
+                  <FileText className="h-3.5 w-3.5 text-indigo-400" />
+                  Load CV in Editor
                 </button>
-              </div>
-
-              {/* Chronological List */}
-              <div className="space-y-3 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-800">
-                {application.timeline.map((evt, idx) => {
-                  const stageMatch = PIPELINE_STAGES.find((s) => s.id === evt.status);
-                  return (
-                    <div key={evt.id || idx} className="flex items-start gap-3 relative pl-1">
-                      <div className="h-6 w-6 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center shrink-0 z-10 text-[10px]">
-                        •
-                      </div>
-                      <div className="flex-1 p-3 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`font-semibold ${stageMatch?.color || 'text-zinc-300'}`}>
-                            {stageMatch?.label || evt.status}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {evt.date}
-                          </span>
-                        </div>
-                        <p className="text-zinc-300 leading-relaxed text-xs">
-                          {evt.note}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {/* TAB 3: LINKED CV SNAPSHOT */}
-          {activeTab === 'snapshot' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-zinc-100">
-                    Exact Tailored CV Snapshot Linked to this Application
-                  </h4>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">
-                    Immutable snapshot of the resume version submitted for {application.company}.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadSubmittedPdf}
-                  disabled={isDownloadingPdf}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition disabled:opacity-50"
-                >
-                  {isDownloadingPdf ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5" />
-                  )}
-                  Download PDF
-                </button>
-              </div>
-
-              {/* Snapshot Summary Preview */}
-              <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-3 font-mono text-xs">
-                <div>
-                  <span className="text-zinc-500 block text-[10px] uppercase font-bold">
-                    Submitted Headline:
-                  </span>
-                  <span className="text-zinc-200">
-                    {application.tailoredCvSnapshot.personalInfo.headline}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-zinc-500 block text-[10px] uppercase font-bold">
-                    Submitted Summary:
-                  </span>
-                  <p className="text-zinc-300 font-sans text-xs leading-relaxed">
-                    {application.tailoredCvSnapshot.personalInfo.summary}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-zinc-500 block text-[10px] uppercase font-bold">
-                    Top Skills Highlighted:
-                  </span>
-                  <div className="flex flex-wrap gap-1 mt-1 font-sans">
-                    {[
-                      ...application.tailoredCvSnapshot.skills.languages,
-                      ...application.tailoredCvSnapshot.skills.frameworks,
-                      ...application.tailoredCvSnapshot.skills.databases,
-                    ]
-                      .slice(0, 10)
-                      .map((s, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded text-[11px] bg-zinc-900 text-zinc-300 border border-zinc-800"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              </div>
+          {/* Section 2: Full Job Description */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-zinc-200 flex items-center gap-2 text-xs">
+                <Briefcase className="h-4 w-4 text-indigo-400" />
+                Full Job Description
+              </label>
+              <span className="text-[11px] text-zinc-500">Editable note area</span>
             </div>
-          )}
+
+            <textarea
+              rows={12}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              placeholder="No job description saved. Paste the job description or interview notes here..."
+              className="w-full p-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs leading-relaxed focus:outline-none focus:border-indigo-500 transition font-mono"
+            />
+          </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between gap-3">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between">
           <button
             type="button"
             onClick={() => {
-              if (confirm(`Are you sure you want to remove ${application.company} from your pipeline?`)) {
+              if (confirm(`Delete application record for ${company}?`)) {
                 onDelete(application.id);
-                onClose();
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            <Trash2 className="h-4 w-4" />
+            Delete Application
           </button>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
+              className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white transition"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
             >
+              <CheckCircle2 className="h-4 w-4" />
               Save Changes
             </button>
           </div>

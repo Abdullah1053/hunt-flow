@@ -1,4 +1,5 @@
 import React from 'react';
+import path from 'path';
 import {
   Document,
   Page,
@@ -10,48 +11,59 @@ import {
 } from '@react-pdf/renderer';
 import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
 
-// Styles for ATS-compliant vector PDF (Jake's Resume / Harvard standard)
+// Register embedded TrueType font (Roboto) with exact file paths
+const fontsDir = path.resolve(process.cwd(), 'public', 'fonts');
+
+Font.register({
+  family: 'Roboto',
+  fonts: [
+    { src: path.join(fontsDir, 'Roboto-Regular.ttf'), fontWeight: 'normal', fontStyle: 'normal' },
+    { src: path.join(fontsDir, 'Roboto-Bold.ttf'), fontWeight: 'bold', fontStyle: 'normal' },
+    { src: path.join(fontsDir, 'Roboto-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
+    { src: path.join(fontsDir, 'Roboto-BoldItalic.ttf'), fontWeight: 'bold', fontStyle: 'italic' },
+  ],
+});
+
+// Disable word hyphenation to prevent splitting words across lines
+Font.registerHyphenationCallback((word) => [word]);
+
+// Styles for ATS/LinkedIn-compliant vector PDF
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 28,
-    paddingHorizontal: 36,
-    fontFamily: 'Times-Roman',
+    paddingTop: 32,
+    paddingBottom: 32,
+    paddingHorizontal: 40,
+    fontFamily: 'Roboto',
     fontSize: 9.5,
-    lineHeight: 1.25,
+    lineHeight: 1.3,
     color: '#000000',
   },
   // Header
   header: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   name: {
     fontSize: 18,
-    fontFamily: 'Times-Bold',
-    textTransform: 'uppercase',
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
     letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  headline: {
-    fontSize: 8.5,
-    fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    color: '#333333',
     marginBottom: 3,
   },
-  contactRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    fontSize: 8.5,
-    fontFamily: 'Helvetica',
+  headline: {
+    fontSize: 9,
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
     color: '#333333',
-    gap: 4,
+    marginBottom: 4,
   },
-  separator: {
-    marginHorizontal: 3,
-    color: '#888888',
+  contactRow: {
+    fontSize: 8.5,
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
+    color: '#333333',
+    textAlign: 'center',
+    lineHeight: 1.3,
   },
   link: {
     color: '#000000',
@@ -60,18 +72,18 @@ const styles = StyleSheet.create({
   // Section Titles
   sectionTitle: {
     fontSize: 10.5,
-    fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
     letterSpacing: 0.5,
     borderBottomWidth: 0.75,
     borderBottomColor: '#000000',
-    paddingBottom: 1.5,
-    marginTop: 7,
-    marginBottom: 4,
+    paddingBottom: 2,
+    marginTop: 8,
+    marginBottom: 5,
   },
   // Entry block
   entryBlock: {
-    marginBottom: 5,
+    marginBottom: 6,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -79,66 +91,79 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   titleBold: {
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
     fontSize: 9.5,
   },
   subtitleItalic: {
-    fontFamily: 'Times-Italic',
+    fontFamily: 'Roboto',
+    fontStyle: 'italic',
     fontSize: 9,
     color: '#222222',
   },
   dateText: {
     fontSize: 8.5,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
     color: '#222222',
   },
   locationText: {
     fontSize: 8.5,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
     color: '#333333',
   },
   summaryText: {
     fontSize: 9,
-    fontFamily: 'Times-Roman',
-    lineHeight: 1.3,
-    textAlign: 'justify',
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
+    lineHeight: 1.35,
+    textAlign: 'left',
     marginBottom: 4,
   },
   // Bullets
   bulletList: {
     marginTop: 2,
-    paddingLeft: 8,
+    paddingLeft: 4,
   },
   bulletRow: {
     flexDirection: 'row',
-    marginBottom: 1.5,
+    marginBottom: 2,
     alignItems: 'flex-start',
   },
   bulletDot: {
     width: 10,
-    fontSize: 8,
+    fontSize: 9,
+    fontFamily: 'Roboto',
+    textAlign: 'left',
   },
   bulletContent: {
     flex: 1,
     fontSize: 9,
-    lineHeight: 1.25,
-    textAlign: 'justify',
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
+    lineHeight: 1.3,
+    textAlign: 'left',
   },
   // Skills
   skillCategoryRow: {
     flexDirection: 'row',
-    marginBottom: 2,
+    marginBottom: 2.5,
     fontSize: 9,
-    fontFamily: 'Helvetica',
-    lineHeight: 1.25,
+    fontFamily: 'Roboto',
+    lineHeight: 1.3,
   },
   skillLabel: {
-    fontFamily: 'Helvetica-Bold',
-    width: 130,
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
+    width: 135,
   },
   skillValues: {
     flex: 1,
+    fontFamily: 'Roboto',
+    fontWeight: 'normal',
     color: '#222222',
+    textAlign: 'left',
   },
 });
 
@@ -147,7 +172,14 @@ interface AtsPdfDocumentProps {
 }
 
 export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
-  const { personalInfo = {} as any, skills = {} as any, experience = [], projects = [], education = [], certifications = [] } = profile || {};
+  const {
+    personalInfo = {} as any,
+    skills = {} as any,
+    experience = [],
+    projects = [],
+    education = [],
+    certifications = [],
+  } = profile || {};
 
   const languages = skills?.languages || [];
   const frameworks = skills?.frameworks || [];
@@ -155,53 +187,75 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
   const devopsAndCloud = skills?.devopsAndCloud || [];
   const toolsAndConcepts = skills?.toolsAndConcepts || [];
 
-  // Build contact parts
+  // Build contact items array
   const contactParts: { text: string; href?: string }[] = [];
   if (personalInfo.location) contactParts.push({ text: personalInfo.location });
-  if (personalInfo.phone) contactParts.push({ text: personalInfo.phone });
+  if (personalInfo.phone) contactParts.push({ text: personalInfo.phone, href: `tel:${personalInfo.phone}` });
   if (personalInfo.email) contactParts.push({ text: personalInfo.email, href: `mailto:${personalInfo.email}` });
-  if (personalInfo.github) contactParts.push({ text: personalInfo.github.replace(/^https?:\/\//, ''), href: personalInfo.github });
-  if (personalInfo.linkedin) contactParts.push({ text: personalInfo.linkedin.replace(/^https?:\/\//, ''), href: personalInfo.linkedin });
-  if (personalInfo.website) contactParts.push({ text: personalInfo.website.replace(/^https?:\/\//, ''), href: personalInfo.website });
+  if (personalInfo.github) {
+    contactParts.push({
+      text: personalInfo.github.replace(/^https?:\/\//, ''),
+      href: personalInfo.github,
+    });
+  }
+  if (personalInfo.linkedin) {
+    contactParts.push({
+      text: personalInfo.linkedin.replace(/^https?:\/\//, ''),
+      href: personalInfo.linkedin,
+    });
+  }
+  if (personalInfo.website) {
+    contactParts.push({
+      text: personalInfo.website.replace(/^https?:\/\//, ''),
+      href: personalInfo.website,
+    });
+  }
+
+  const candidateName = (personalInfo.fullName || 'Candidate Name').toUpperCase();
+  const headline = personalInfo.headline ? personalInfo.headline.toUpperCase() : null;
 
   return (
     <Document
-      title={`${personalInfo.fullName} - ATS Resume`}
-      author={personalInfo.fullName}
+      title={`${personalInfo.fullName || 'Candidate'} - ATS Resume`}
+      author={personalInfo.fullName || 'Candidate'}
       subject="ATS-Optimized Software Engineer Resume"
       keywords="Software Engineer, Resume, Full-Stack, Developer, ATS"
     >
       <Page size="A4" style={styles.page}>
         {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.name}>{personalInfo.fullName || 'Candidate Name'}</Text>
+          <View style={{ marginBottom: 3 }}>
+            <Text style={styles.name}>{candidateName}</Text>
+          </View>
 
-          {personalInfo.headline && (
-            <Text style={styles.headline}>{personalInfo.headline}</Text>
+          {headline && (
+            <View style={{ marginBottom: 4 }}>
+              <Text style={styles.headline}>{headline}</Text>
+            </View>
           )}
 
-          <View style={styles.contactRow}>
-            {contactParts.map((item, idx) => (
-              <React.Fragment key={idx}>
-                {item.href ? (
-                  <Link src={item.href} style={styles.link}>
-                    <Text>{item.text}</Text>
-                  </Link>
-                ) : (
-                  <Text>{item.text}</Text>
-                )}
-                {idx < contactParts.length - 1 && (
-                  <Text style={styles.separator}>•</Text>
-                )}
-              </React.Fragment>
-            ))}
-          </View>
+          {contactParts.length > 0 && (
+            <Text style={styles.contactRow}>
+              {contactParts.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  {item.href ? (
+                    <Link src={item.href} style={styles.link}>
+                      {item.text}
+                    </Link>
+                  ) : (
+                    item.text
+                  )}
+                  {idx < contactParts.length - 1 ? ' | ' : ''}
+                </React.Fragment>
+              ))}
+            </Text>
+          )}
         </View>
 
         {/* SUMMARY */}
         {personalInfo.summary && (
           <View wrap={false}>
-            <Text style={styles.sectionTitle}>Professional Summary</Text>
+            <Text style={styles.sectionTitle}>PROFESSIONAL SUMMARY</Text>
             <Text style={styles.summaryText}>{personalInfo.summary}</Text>
           </View>
         )}
@@ -209,20 +263,20 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* EDUCATION */}
         {education.length > 0 && (
           <View wrap={false}>
-            <Text style={styles.sectionTitle}>Education</Text>
+            <Text style={styles.sectionTitle}>EDUCATION</Text>
             {education.map((edu) => (
               <View key={edu.id} style={styles.entryBlock} wrap={false}>
                 <View style={styles.rowBetween}>
                   <Text style={styles.titleBold}>{edu.institution}</Text>
                   <Text style={styles.dateText}>
-                    {edu.startDate} – {edu.endDate}
+                    {edu.startDate} - {edu.endDate}
                   </Text>
                 </View>
                 <View style={styles.rowBetween}>
                   <Text style={styles.subtitleItalic}>
                     {edu.degree}
                     {edu.field ? ` in ${edu.field}` : ''}
-                    {edu.gpa ? ` — GPA: ${edu.gpa}` : ''}
+                    {edu.gpa ? ` - GPA: ${edu.gpa}` : ''}
                   </Text>
                 </View>
                 {edu.achievements && edu.achievements.length > 0 && (
@@ -243,7 +297,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* WORK EXPERIENCE */}
         {experience.filter(isItemVisible).length > 0 && (
           <View>
-            <Text style={styles.sectionTitle}>Experience</Text>
+            <Text style={styles.sectionTitle}>EXPERIENCE</Text>
             {experience.filter(isItemVisible).map((exp) => {
               const visibleBullets = getVisibleBullets(exp);
               return (
@@ -251,7 +305,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
                   <View style={styles.rowBetween}>
                     <Text style={styles.titleBold}>{exp.role}</Text>
                     <Text style={styles.dateText}>
-                      {exp.startDate} – {exp.endDate}
+                      {exp.startDate} - {exp.endDate}
                     </Text>
                   </View>
                   <View style={styles.rowBetween}>
@@ -277,7 +331,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* PROJECTS */}
         {projects.filter(isItemVisible).length > 0 && (
           <View>
-            <Text style={styles.sectionTitle}>Projects & Technical Initiatives</Text>
+            <Text style={styles.sectionTitle}>PROJECTS</Text>
             {projects.filter(isItemVisible).map((proj) => {
               const visibleBullets = getVisibleBullets(proj);
               return (
@@ -285,13 +339,13 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
                   <View style={styles.rowBetween}>
                     <Text style={styles.titleBold}>
                       {proj.title}
-                      {proj.techStack.length > 0
+                      {proj.techStack && proj.techStack.length > 0
                         ? ` | ${proj.techStack.join(', ')}`
                         : ''}
                     </Text>
                     {proj.startDate && (
                       <Text style={styles.dateText}>
-                        {proj.startDate} – {proj.endDate || 'Present'}
+                        {proj.startDate} - {proj.endDate || 'Present'}
                       </Text>
                     )}
                   </View>
@@ -318,7 +372,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
 
         {/* TECHNICAL SKILLS */}
         <View wrap={false}>
-          <Text style={styles.sectionTitle}>Technical Skills</Text>
+          <Text style={styles.sectionTitle}>TECHNICAL SKILLS</Text>
           {languages.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Languages:</Text>
@@ -340,17 +394,13 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
           {devopsAndCloud.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>DevOps & Cloud:</Text>
-              <Text style={styles.skillValues}>
-                {devopsAndCloud.join(', ')}
-              </Text>
+              <Text style={styles.skillValues}>{devopsAndCloud.join(', ')}</Text>
             </View>
           )}
           {toolsAndConcepts.length > 0 && (
             <View style={styles.skillCategoryRow}>
               <Text style={styles.skillLabel}>Architecture & Concepts:</Text>
-              <Text style={styles.skillValues}>
-                {toolsAndConcepts.join(', ')}
-              </Text>
+              <Text style={styles.skillValues}>{toolsAndConcepts.join(', ')}</Text>
             </View>
           )}
         </View>
@@ -358,13 +408,13 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* CERTIFICATIONS */}
         {certifications.length > 0 && (
           <View wrap={false}>
-            <Text style={styles.sectionTitle}>Certifications & Licenses</Text>
+            <Text style={styles.sectionTitle}>CERTIFICATIONS</Text>
             <View style={styles.bulletList}>
               {certifications.map((cert) => (
                 <View key={cert.id} style={styles.bulletRow}>
                   <Text style={styles.bulletDot}>•</Text>
                   <Text style={styles.bulletContent}>
-                    {cert.name} — {cert.issuer} ({cert.date})
+                    {cert.name} - {cert.issuer} ({cert.date})
                   </Text>
                 </View>
               ))}

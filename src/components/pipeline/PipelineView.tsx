@@ -1,43 +1,49 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { JobApplicationRecord, ApplicationStatus } from '@/types/pipeline';
-import { getSampleJobApplications, PIPELINE_STAGES } from '@/data/samplePipeline';
+import {
+  JobApplicationRecord,
+  JobApplicationStatus,
+  APPLICATION_STATUS_CONFIG,
+} from '@/types/pipeline';
+import { getSampleJobApplications } from '@/data/samplePipeline';
 import { MasterCvProfile } from '@/types/masterCv';
-import { KanbanBoard } from './KanbanBoard';
-import { PipelineAnalyticsDashboard } from './PipelineAnalyticsDashboard';
 import { ApplicationDetailModal } from './ApplicationDetailModal';
 import { AddApplicationModal } from './AddApplicationModal';
 import {
   Briefcase,
-  LayoutGrid,
-  BarChart3,
-  List,
   Plus,
   Download,
   Upload,
-  RotateCcw,
-  CheckCircle2,
   Search,
   ExternalLink,
-  MapPin,
+  FileText,
   Calendar,
+  Building,
+  Trash2,
+  Eye,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface PipelineViewProps {
   masterProfile: MasterCvProfile;
+  onLoadCvInStudio?: (snapshot: MasterCvProfile) => void;
 }
 
-export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => {
+export const PipelineView: React.FC<PipelineViewProps> = ({
+  masterProfile,
+  onLoadCvInStudio,
+}) => {
   const [applications, setApplications] = useState<JobApplicationRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<'kanban' | 'analytics' | 'list'>('kanban');
   const [selectedApp, setSelectedApp] = useState<JobApplicationRecord | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStage, setFilterStage] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [expandedDescIds, setExpandedDescIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize from localStorage or seed with sample applications
+  // Initialize from localStorage or sample data
   useEffect(() => {
     try {
       const stored = localStorage.getItem('huntflow_applications');
@@ -51,7 +57,6 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
     } catch (e) {
       console.error('Error loading stored applications:', e);
     }
-    // Default seed
     const defaultApps = getSampleJobApplications();
     setApplications(defaultApps);
     try {
@@ -59,7 +64,6 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
     } catch {}
   }, []);
 
-  // Sync to localStorage
   const saveApplications = (updated: JobApplicationRecord[]) => {
     setApplications(updated);
     try {
@@ -69,70 +73,47 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
     }
   };
 
-  // Status transition handler
-  const handleStatusChange = (appId: string, newStatus: ApplicationStatus) => {
-    const stageMatch = PIPELINE_STAGES.find((s) => s.id === newStatus);
-    const updated = applications.map((app) => {
-      if (app.id === appId && app.status !== newStatus) {
-        const newTimeline = [
-          ...app.timeline,
-          {
-            id: `tl_${Date.now()}`,
-            status: newStatus,
-            date: new Date().toISOString().split('T')[0],
-            note: `Advanced to ${stageMatch?.label || newStatus}.`,
-          },
-        ];
-        return {
-          ...app,
-          status: newStatus,
-          timeline: newTimeline,
-          updatedAt: new Date().toISOString(),
-        };
-      }
-      return app;
-    });
+  const handleStatusChange = (appId: string, newStatus: JobApplicationStatus) => {
+    const updated = applications.map((app) =>
+      app.id === appId ? { ...app, status: newStatus } : app
+    );
     saveApplications(updated);
   };
 
-  // Add application
   const handleAddApplication = (newRecord: JobApplicationRecord) => {
     const updated = [newRecord, ...applications];
     saveApplications(updated);
   };
 
-  // Update application from modal
   const handleUpdateApplication = (updatedApp: JobApplicationRecord) => {
     const updated = applications.map((a) => (a.id === updatedApp.id ? updatedApp : a));
     saveApplications(updated);
     setSelectedApp(null);
   };
 
-  // Delete application
   const handleDeleteApplication = (id: string) => {
     const updated = applications.filter((a) => a.id !== id);
     saveApplications(updated);
     setSelectedApp(null);
   };
 
-  // Reset to default sample
   const handleResetToDemo = () => {
-    if (confirm('Reset application pipeline to the initial Abdullah Ademi demo records?')) {
+    if (confirm('Reset Job Archive to sample records?')) {
       const defaultApps = getSampleJobApplications();
       saveApplications(defaultApps);
     }
   };
 
-  // Export JSON Backup
   const handleExportBackup = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(applications, null, 2));
+    const dataStr =
+      'data:text/json;charset=utf-8,' +
+      encodeURIComponent(JSON.stringify(applications, null, 2));
     const a = document.createElement('a');
     a.href = dataStr;
-    a.download = `huntflow_applications_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `huntflow_job_archive_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
   };
 
-  // Import JSON Backup
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -142,58 +123,72 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
           saveApplications(parsed);
-          alert(`Successfully imported ${parsed.length} job applications!`);
+          alert(`Successfully imported ${parsed.length} applications!`);
         } else {
-          alert('Invalid backup file format.');
+          alert('Invalid backup file.');
         }
-      } catch (err) {
-        alert('Failed to parse JSON file.');
+      } catch {
+        alert('Failed to parse backup JSON.');
       }
     };
     reader.readAsText(file);
     e.target.value = '';
   };
 
-  // Download Tailored PDF for an application
   const handleDownloadAppPdf = async (app: JobApplicationRecord) => {
     try {
-      const res = await fetch('/api/cv/download-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: app.tailoredCvSnapshot }),
-      });
+      if (app.submittedPdfDataUrl) {
+        const a = document.createElement('a');
+        a.href = app.submittedPdfDataUrl;
+        a.download = app.submittedPdfFileName || `${app.company}_Resume.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
 
-      if (!res.ok) throw new Error('Failed to generate PDF');
+      if (app.tailoredCvSnapshot) {
+        const res = await fetch('/api/cv/download-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: app.tailoredCvSnapshot }),
+        });
+        if (!res.ok) throw new Error('Failed to generate PDF');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = app.submittedPdfFileName || `${app.company}_Resume.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        return;
+      }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeName = (app.tailoredCvSnapshot.personalInfo.fullName || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const safeCompany = app.company.replace(/[^a-zA-Z0-9_-]/g, '_');
-      a.download = `${safeName}_${safeCompany}_Resume.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      alert('No PDF attached to this application.');
     } catch (e: any) {
       alert('Could not download PDF: ' + e.message);
     }
   };
 
-  // Filtered applications
+  const toggleDescription = (id: string) => {
+    setExpandedDescIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
   const filteredApps = applications.filter((app) => {
     const matchesSearch =
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStage = filterStage === 'all' || app.status === filterStage;
-    return matchesSearch && matchesStage;
+      app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || app.status === filterStatus;
+    return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="space-y-6">
-      {/* Hidden File Input for Import */}
+      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -202,33 +197,37 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
         className="hidden"
       />
 
-      {/* Top Banner Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-lg">
+      {/* Top Header & Actions Bar */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2.5">
-            <Briefcase className="h-6 w-6 text-indigo-400" />
-            Job Application Pipeline & Versioned CV Tracker
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Track interview rounds, manage immutable tailored CV snapshots, and monitor career conversion metrics.
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-indigo-400" />
+              Job Applications Archive
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+              {applications.length} Saved
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Keep track of every job you applied to, its exact description, job link, and submitted PDF
           </p>
         </div>
 
-        {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-900/30 transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
           >
             <Plus className="h-4 w-4" />
-            New Application
+            Archive New Job
           </button>
 
           <button
             type="button"
             onClick={handleExportBackup}
-            title="Export all applications & snapshots as JSON"
+            title="Export all applications as JSON"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
           >
             <Download className="h-3.5 w-3.5" />
@@ -238,160 +237,215 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="Import backup JSON"
+            title="Import JSON backup"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
           >
             <Upload className="h-3.5 w-3.5" />
             Import
           </button>
-
-          <button
-            type="button"
-            onClick={handleResetToDemo}
-            title="Reset to default Abdullah Ademi demo pipeline"
-            className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 bg-zinc-800/60 border border-zinc-700/60 transition"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs & Search Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-        <div className="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('kanban')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-              activeTab === 'kanban'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <LayoutGrid className="h-3.5 w-3.5 text-indigo-400" />
-            Kanban Board
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('analytics')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-              activeTab === 'analytics'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
-            Analytics & Funnel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('list')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-              activeTab === 'list'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <List className="h-3.5 w-3.5 text-purple-400" />
-            Table View
-          </button>
+      {/* Search and Status Filters */}
+      <div className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by job title or company..."
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500"
+          />
         </div>
 
-        {/* Search & Filter */}
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="h-3.5 w-3.5 text-zinc-500 absolute left-2.5 top-2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search company or title..."
-              className="pl-8 pr-3 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 w-44 sm:w-56"
-            />
-          </div>
+          <span className="text-zinc-400 text-xs whitespace-nowrap">Status:</span>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+          >
+            <option value="all">All Statuses</option>
+            <option value="applied">Applied</option>
+            <option value="interviewing">Interviewing</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
-      {/* VIEW 1: KANBAN BOARD */}
-      {activeTab === 'kanban' && (
-        <KanbanBoard
-          applications={filteredApps}
-          onStatusChange={handleStatusChange}
-          onSelectApplication={(app) => setSelectedApp(app)}
-          onDownloadPdf={handleDownloadAppPdf}
-        />
-      )}
+      {/* Applications List */}
+      {filteredApps.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl bg-zinc-900/50 border border-dashed border-zinc-800 space-y-3">
+          <Briefcase className="h-10 w-10 text-zinc-600 mx-auto" />
+          <h3 className="text-sm font-semibold text-zinc-300">No Job Applications Found</h3>
+          <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+            {searchQuery || filterStatus !== 'all'
+              ? 'Try adjusting your search query or status filter.'
+              : 'Start tracking your applications by clicking "Archive New Job" above.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition mt-2"
+          >
+            <Plus className="h-4 w-4" />
+            Archive First Application
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredApps.map((app) => {
+            const statusConfig =
+              APPLICATION_STATUS_CONFIG[app.status] || APPLICATION_STATUS_CONFIG.applied;
+            const isDescExpanded = expandedDescIds.includes(app.id);
 
-      {/* VIEW 2: ANALYTICS DASHBOARD */}
-      {activeTab === 'analytics' && (
-        <PipelineAnalyticsDashboard applications={applications} />
-      )}
+            return (
+              <div
+                key={app.id}
+                className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition shadow-lg space-y-4"
+              >
+                {/* Row Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-base font-bold text-white">{app.company}</span>
+                      <span className="text-zinc-600">•</span>
+                      <span className="text-sm font-semibold text-zinc-200">{app.jobTitle}</span>
+                    </div>
 
-      {/* VIEW 3: TABLE LIST VIEW */}
-      {activeTab === 'list' && (
-        <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 overflow-x-auto shadow-md">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-zinc-800 text-zinc-400 font-semibold uppercase text-[10px]">
-              <tr>
-                <th className="pb-3 pl-2">Company</th>
-                <th className="pb-3">Role Title</th>
-                <th className="pb-3">Stage</th>
-                <th className="pb-3">Match</th>
-                <th className="pb-3">Compensation</th>
-                <th className="pb-3">Applied Date</th>
-                <th className="pb-3 text-right pr-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/80">
-              {filteredApps.map((app) => {
-                const stageMatch = PIPELINE_STAGES.find((s) => s.id === app.status);
-                return (
-                  <tr
-                    key={app.id}
-                    onClick={() => setSelectedApp(app)}
-                    className="hover:bg-zinc-800/40 transition cursor-pointer"
-                  >
-                    <td className="py-3 pl-2 font-bold text-zinc-100">
-                      {app.company}
-                    </td>
-                    <td className="py-3 text-zinc-300 font-medium">
-                      {app.jobTitle}
-                    </td>
-                    <td className="py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${stageMatch?.badgeColor || ''}`}>
-                        {stageMatch?.label || app.status}
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-zinc-500" />
+                        Applied: {app.appliedDate}
                       </span>
-                    </td>
-                    <td className="py-3 font-mono text-emerald-400 font-semibold">
-                      {app.matchScore}%
-                    </td>
-                    <td className="py-3 text-zinc-400 font-mono">
-                      {app.salaryRange || '—'}
-                    </td>
-                    <td className="py-3 text-zinc-500 font-mono">
-                      {app.appliedDate || app.createdAt.split('T')[0]}
-                    </td>
-                    <td className="py-3 text-right pr-2" onClick={(e) => e.stopPropagation()}>
+
+                      {app.jobUrl && (
+                        <a
+                          href={app.jobUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Posting
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status Dropdown Pill & Direct Actions */}
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${statusConfig.badgeClass}`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dotColor}`} />
+                        <select
+                          value={app.status}
+                          onChange={(e) =>
+                            handleStatusChange(app.id, e.target.value as JobApplicationStatus)
+                          }
+                          className="bg-transparent text-xs font-bold cursor-pointer focus:outline-none"
+                        >
+                          <option value="applied" className="bg-zinc-900 text-white">
+                            Applied
+                          </option>
+                          <option value="interviewing" className="bg-zinc-900 text-white">
+                            Interviewing
+                          </option>
+                          <option value="offer" className="bg-zinc-900 text-white">
+                            Offer
+                          </option>
+                          <option value="rejected" className="bg-zinc-900 text-white">
+                            Rejected
+                          </option>
+                        </select>
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAppPdf(app)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition shadow-sm"
+                      title="Download the exact PDF submitted for this application"
+                    >
+                      <Download className="h-3.5 w-3.5 text-emerald-400" />
+                      Download PDF
+                    </button>
+
+                    {app.tailoredCvSnapshot && onLoadCvInStudio && (
                       <button
                         type="button"
-                        onClick={() => handleDownloadAppPdf(app)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition text-[11px]"
+                        onClick={() => onLoadCvInStudio(app.tailoredCvSnapshot!)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition"
+                        title="Load this job's tailored CV snapshot directly into CV Builder"
                       >
-                        <Download className="h-3 w-3" />
-                        PDF
+                        <FileText className="h-3.5 w-3.5 text-indigo-400" />
+                        Load in Editor
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApp(app)}
+                      className="p-1.5 rounded-xl text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 transition"
+                      title="View & Edit Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete application for ${app.company}?`)) {
+                          handleDeleteApplication(app.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-xl text-zinc-500 hover:text-rose-400 bg-zinc-800/40 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Job Description Preview / Expand */}
+                {app.jobDescription && (
+                  <div className="pt-2 border-t border-zinc-800/60">
+                    <button
+                      type="button"
+                      onClick={() => toggleDescription(app.id)}
+                      className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 font-medium"
+                    >
+                      {isDescExpanded ? (
+                        <>
+                          <ChevronUp className="h-3.5 w-3.5" />
+                          Hide Job Description
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3.5 w-3.5" />
+                          Show Job Description
+                        </>
+                      )}
+                    </button>
+
+                    {isDescExpanded && (
+                      <div className="mt-2 p-3.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto font-mono">
+                        {app.jobDescription}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* DETAIL MODAL */}
+      {/* Application Detail / Edit Modal */}
       {selectedApp && (
         <ApplicationDetailModal
           application={selectedApp}
@@ -399,10 +453,11 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ masterProfile }) => 
           onClose={() => setSelectedApp(null)}
           onUpdate={handleUpdateApplication}
           onDelete={handleDeleteApplication}
+          onLoadCvInStudio={onLoadCvInStudio}
         />
       )}
 
-      {/* ADD APPLICATION MODAL */}
+      {/* Add New Application Modal */}
       {isAddModalOpen && (
         <AddApplicationModal
           isOpen={isAddModalOpen}

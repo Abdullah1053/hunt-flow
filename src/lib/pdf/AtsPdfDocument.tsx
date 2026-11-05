@@ -191,7 +191,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
                   <Text>{item.text}</Text>
                 )}
                 {idx < contactParts.length - 1 && (
-                  <Text style={styles.separator}>|</Text>
+                  <Text style={styles.separator}>•</Text>
                 )}
               </React.Fragment>
             ))}
@@ -201,7 +201,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* SUMMARY */}
         {personalInfo.summary && (
           <View wrap={false}>
-            <Text style={styles.sectionTitle}>Summary</Text>
+            <Text style={styles.sectionTitle}>Professional Summary</Text>
             <Text style={styles.summaryText}>{personalInfo.summary}</Text>
           </View>
         )}
@@ -221,9 +221,9 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
                 <View style={styles.rowBetween}>
                   <Text style={styles.subtitleItalic}>
                     {edu.degree}
-                    {edu.field ? `; ${edu.field}` : ''}
+                    {edu.field ? ` in ${edu.field}` : ''}
+                    {edu.gpa ? ` — GPA: ${edu.gpa}` : ''}
                   </Text>
-                  {edu.gpa && <Text style={styles.dateText}>{edu.gpa}</Text>}
                 </View>
                 {edu.achievements && edu.achievements.length > 0 && (
                   <View style={styles.bulletList}>
@@ -243,19 +243,19 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* WORK EXPERIENCE */}
         {experience.filter(isItemVisible).length > 0 && (
           <View>
-            <Text style={styles.sectionTitle}>Work Experience</Text>
+            <Text style={styles.sectionTitle}>Experience</Text>
             {experience.filter(isItemVisible).map((exp) => {
               const visibleBullets = getVisibleBullets(exp);
               return (
                 <View key={exp.id} style={styles.entryBlock} wrap={false}>
                   <View style={styles.rowBetween}>
-                    <Text style={styles.titleBold}>{exp.company}</Text>
+                    <Text style={styles.titleBold}>{exp.role}</Text>
                     <Text style={styles.dateText}>
                       {exp.startDate} – {exp.endDate}
                     </Text>
                   </View>
                   <View style={styles.rowBetween}>
-                    <Text style={styles.subtitleItalic}>{exp.role}</Text>
+                    <Text style={styles.subtitleItalic}>{exp.company}</Text>
                     <Text style={styles.locationText}>{exp.location}</Text>
                   </View>
                   {visibleBullets.length > 0 && (
@@ -277,7 +277,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
         {/* PROJECTS */}
         {projects.filter(isItemVisible).length > 0 && (
           <View>
-            <Text style={styles.sectionTitle}>Key Projects</Text>
+            <Text style={styles.sectionTitle}>Projects & Technical Initiatives</Text>
             {projects.filter(isItemVisible).map((proj) => {
               const visibleBullets = getVisibleBullets(proj);
               return (
@@ -333,13 +333,13 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
           )}
           {databases.length > 0 && (
             <View style={styles.skillCategoryRow}>
-              <Text style={styles.skillLabel}>Databases & Optimization:</Text>
+              <Text style={styles.skillLabel}>Databases:</Text>
               <Text style={styles.skillValues}>{databases.join(', ')}</Text>
             </View>
           )}
           {devopsAndCloud.length > 0 && (
             <View style={styles.skillCategoryRow}>
-              <Text style={styles.skillLabel}>DevOps & Infrastructure:</Text>
+              <Text style={styles.skillLabel}>DevOps & Cloud:</Text>
               <Text style={styles.skillValues}>
                 {devopsAndCloud.join(', ')}
               </Text>
@@ -347,7 +347,7 @@ export const AtsPdfDocument: React.FC<AtsPdfDocumentProps> = ({ profile }) => {
           )}
           {toolsAndConcepts.length > 0 && (
             <View style={styles.skillCategoryRow}>
-              <Text style={styles.skillLabel}>Security & Architecture:</Text>
+              <Text style={styles.skillLabel}>Architecture & Concepts:</Text>
               <Text style={styles.skillValues}>
                 {toolsAndConcepts.join(', ')}
               </Text>

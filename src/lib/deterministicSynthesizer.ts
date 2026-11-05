@@ -27,7 +27,7 @@ export function synthesizeDeterministicProfile(
 
   const location =
     ghUser?.location ||
-    'Sana\'a / Yemen, Remote / Global';
+    'Sana\'a / Yemen, (Willing to relocate to Riyadh)';
 
   const githubUrl = ghUser?.html_url || 'https://github.com/abdullah1053';
   const website = ghUser?.blog || 'https://abdullah1053.github.io';
@@ -36,14 +36,14 @@ export function synthesizeDeterministicProfile(
   const languages = Array.from(
     new Set([
       'PHP',
-      'JavaScript (ES6+)',
       'TypeScript',
+      'JavaScript (ES6+)',
       'SQL',
-      'HTML5/CSS3',
       'Dart',
       'C++',
+      'HTML5/CSS3',
       ...(stagingPayload.metrics.detectedKeywords.filter((k) =>
-        ['PHP', 'JavaScript', 'TypeScript', 'SQL', 'Dart', 'C++'].includes(k)
+        ['PHP', 'TypeScript', 'JavaScript', 'SQL', 'Dart', 'C++'].includes(k)
       ) || []),
     ])
   );
@@ -56,9 +56,8 @@ export function synthesizeDeterministicProfile(
       'Node.js',
       'Express',
       'TailwindCSS',
-      'Vue.js',
       ...(stagingPayload.metrics.detectedKeywords.filter((k) =>
-        ['Laravel', 'ReactJS', 'React', 'Next.js', 'Node.js', 'TailwindCSS', 'Vue.js'].includes(k)
+        ['Laravel', 'ReactJS', 'Next.js', 'Node.js', 'Express', 'TailwindCSS'].includes(k)
       ) || []),
     ])
   );
@@ -69,9 +68,7 @@ export function synthesizeDeterministicProfile(
       'MongoDB',
       'PostgreSQL',
       'Redis',
-      'Database Indexing',
       'Query Optimization',
-      'Backup Strategies',
     ])
   );
 
@@ -80,10 +77,10 @@ export function synthesizeDeterministicProfile(
       'AWS (EC2, S3, RDS, IAM)',
       'Docker',
       'CI/CD Pipelines',
+      'Linux Server Administration',
       'Nginx',
       'Caddy',
       'PM2',
-      'Cloud Platforms (GCP)',
     ])
   );
 
@@ -95,9 +92,11 @@ export function synthesizeDeterministicProfile(
       'AWS IAM',
       'RESTful APIs',
       'Webhook Architectures',
+      'Real-Time Systems',
       'Microservices',
-      'Agile/Scrum',
-      'Git',
+      'System Architecture',
+      'Agile / Scrum',
+      'Git Workflow',
     ])
   );
 
@@ -190,9 +189,7 @@ export function synthesizeDeterministicProfile(
       startDate: 'Jan 2018',
       endDate: 'Jan 2022',
       gpa: 'Very Good',
-      achievements: [
-        'Core Focus: Data Structures & Algorithms, Distributed Systems, Database Management Systems, Software Engineering Methodologies',
-      ],
+      achievements: [],
     },
   ];
 
@@ -220,7 +217,7 @@ export function synthesizeDeterministicProfile(
       github: githubUrl,
       linkedin: 'https://linkedin.com/in/abdullah1053',
       summary:
-        'Full-Stack Software Engineer with 4+ years of experience designing, scaling, and maintaining production web applications using PHP (Laravel) and ReactJS. Proven expertise in deploying and optimizing AWS cloud infrastructure (EC2, RDS, S3), designing high-performance MySQL and MongoDB databases, and implementing secure token-based authentication (OAuth/JWT). Adept at leading CI/CD automation, API integrations, and Agile cross-functional collaboration.',
+        'Full-Stack Software Engineer with 4+ years of experience architecting scalable web applications, high-throughput RESTful APIs, and secure cloud environments using PHP (Laravel), ReactJS, and AWS (EC2, RDS, S3). Proven track record of optimizing MySQL & MongoDB databases, automating CI/CD pipelines, and implementing robust token-based authentication (OAuth/JWT) in collaborative Agile environments.',
     },
     skills: {
       languages,
@@ -253,7 +250,7 @@ export function getDefaultMasterProfile(): MasterCvProfile {
         login: 'abdullah1053',
         name: 'Abdullah Ademi',
         bio: 'Full-Stack Developer (PHP/Laravel & ReactJS) | AWS & Cloud Architecture',
-        location: 'Sana\'a / Yemen, Remote / Global',
+        location: 'Sana\'a / Yemen, (Willing to relocate to Riyadh)',
         html_url: 'https://github.com/abdullah1053',
         blog: 'https://abdullah1053.github.io',
         avatar_url: '',

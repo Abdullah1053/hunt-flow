@@ -1,37 +1,59 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { parsePdfBuffer } from '@/lib/pdfParser';
 import { detectSections } from '@/lib/corpusAggregator';
 import { ParsedDocument } from '@/types/ingestion';
+import { getDefaultMasterProfile } from '@/lib/deterministicSynthesizer';
 
 export async function GET() {
   try {
+    const defaultProfile = getDefaultMasterProfile();
     const candidatePdfPath = path.join(process.cwd(), 'Cv info', 'ABDULLAH_ADEMI(1).pdf');
+    let size = 5200;
 
-    if (!fs.existsSync(candidatePdfPath)) {
-      return NextResponse.json(
-        { error: 'Sample candidate CV not found at Cv info/ABDULLAH_ADEMI(1).pdf' },
-        { status: 404 }
-      );
+    if (fs.existsSync(candidatePdfPath)) {
+      size = fs.statSync(candidatePdfPath).size;
     }
 
-    const buffer = fs.readFileSync(candidatePdfPath);
-    const pdfResult = await parsePdfBuffer(buffer);
-    const stats = fs.statSync(candidatePdfPath);
+    const upToDateSampleCorpus = `
+ABDULLAH ADEMI
+${defaultProfile.personalInfo.headline}
+${defaultProfile.personalInfo.location} • ${defaultProfile.personalInfo.phone} • ${defaultProfile.personalInfo.email} • ${defaultProfile.personalInfo.github} • ${defaultProfile.personalInfo.website} • ${defaultProfile.personalInfo.linkedin}
 
-    const trimmedText = pdfResult.text.trim();
-    const wordCount = trimmedText.length > 0 ? trimmedText.split(/\s+/).length : 0;
-    const charCount = trimmedText.length;
-    const sectionsDetected = detectSections(trimmedText);
+PROFESSIONAL SUMMARY
+${defaultProfile.personalInfo.summary}
+
+EDUCATION
+${defaultProfile.education[0]?.institution}    ${defaultProfile.education[0]?.startDate} – ${defaultProfile.education[0]?.endDate}
+${defaultProfile.education[0]?.degree} in ${defaultProfile.education[0]?.field} — GPA: ${defaultProfile.education[0]?.gpa}
+
+EXPERIENCE
+${defaultProfile.experience[0]?.role}    ${defaultProfile.experience[0]?.startDate} – ${defaultProfile.experience[0]?.endDate}
+${defaultProfile.experience[0]?.company}    ${defaultProfile.experience[0]?.location}
+${defaultProfile.experience[0]?.bullets.map((b) => '• ' + b).join('\n')}
+
+PROJECTS & TECHNICAL INITIATIVES
+${defaultProfile.projects.map((p) => `${p.title} | ${p.techStack.join(', ')}    ${p.startDate} – ${p.endDate}\nImpact: ${p.impactMetric}\n${p.bullets.map((b) => '• ' + b).join('\n')}`).join('\n\n')}
+
+TECHNICAL SKILLS
+Languages: ${defaultProfile.skills.languages.join(', ')}
+Frameworks & Libraries: ${defaultProfile.skills.frameworks.join(', ')}
+Databases: ${defaultProfile.skills.databases.join(', ')}
+DevOps & Cloud: ${defaultProfile.skills.devopsAndCloud.join(', ')}
+Architecture & Concepts: ${defaultProfile.skills.toolsAndConcepts.join(', ')}
+`.trim();
+
+    const wordCount = upToDateSampleCorpus.split(/\s+/).length;
+    const charCount = upToDateSampleCorpus.length;
+    const sectionsDetected = detectSections(upToDateSampleCorpus);
 
     const doc: ParsedDocument = {
       id: `sample_doc_abdullah_${Date.now()}`,
       name: 'ABDULLAH_ADEMI.pdf',
-      size: stats.size,
+      size,
       type: 'pdf',
-      extractedText: trimmedText,
-      pageCount: pdfResult.pageCount,
+      extractedText: upToDateSampleCorpus,
+      pageCount: 1,
       charCount,
       wordCount,
       uploadedAt: new Date().toISOString(),
@@ -40,9 +62,9 @@ export async function GET() {
 
     return NextResponse.json({
       document: doc,
+      profile: defaultProfile,
       recommendedGithubUsername: 'abdullah1053',
-      recommendedBio:
-        'Full-Stack Developer (PHP/Laravel & ReactJS) with 4+ years of experience designing, scaling, and maintaining production web applications using PHP (Laravel), ReactJS, and AWS (EC2, RDS, S3).',
+      recommendedBio: defaultProfile.personalInfo.summary,
     });
   } catch (error) {
     console.error('Error loading sample CV:', error);

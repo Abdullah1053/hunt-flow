@@ -11,7 +11,7 @@ import { AtsEngineView } from '@/components/ats/AtsEngineView';
 import { ContextualTailorView } from '@/components/tailor/ContextualTailorView';
 import { PipelineView } from '@/components/pipeline/PipelineView';
 import { synthesizePayload } from '@/lib/corpusAggregator';
-import { synthesizeDeterministicProfile } from '@/lib/deterministicSynthesizer';
+import { synthesizeDeterministicProfile, getDefaultMasterProfile } from '@/lib/deterministicSynthesizer';
 import {
   GitHubUserProfile,
   GitHubRepoItem,
@@ -101,7 +101,7 @@ export default function HomePage() {
   const handleResetMasterProfile = () => {
     try {
       localStorage.removeItem('huntflow_master_profile');
-      const fresh = synthesizeDeterministicProfile(stagingPayload);
+      const fresh = getDefaultMasterProfile();
       setMasterProfile(fresh);
     } catch (e) {
       console.error('Failed to reset master profile:', e);
@@ -275,10 +275,14 @@ export default function HomePage() {
     setDocError(null);
     setGithubError(null);
     try {
+      let sampleProfile: MasterCvProfile | null = null;
       // 1. Fetch sample CV
       const sampleRes = await fetch('/api/ingest/sample');
       if (sampleRes.ok) {
         const sampleData = await sampleRes.json();
+        if (sampleData.profile) {
+          sampleProfile = sampleData.profile;
+        }
         if (sampleData.document) {
           setDocuments((prev) => {
             const exists = prev.some((d) => d.name === sampleData.document.name);
@@ -316,7 +320,7 @@ export default function HomePage() {
       });
 
       // 4. Generate Master CV Profile
-      const initialProfile = synthesizeDeterministicProfile(stagingPayload);
+      const initialProfile = sampleProfile || getDefaultMasterProfile();
       setMasterProfile(initialProfile);
       try {
         localStorage.setItem('huntflow_master_profile', JSON.stringify(initialProfile));

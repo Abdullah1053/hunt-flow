@@ -100,7 +100,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
                   ) : (
                     <span>{item.text}</span>
                   )}
-                  {idx < contactParts.length - 1 && <span className="text-zinc-400">|</span>}
+                  {idx < contactParts.length - 1 && <span className="text-zinc-400">•</span>}
                 </React.Fragment>
               ))}
             </div>
@@ -110,7 +110,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
           {personalInfo.summary && (
             <div className="mt-3">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Summary
+                Professional Summary
               </h2>
               <p className="text-[11px] font-sans text-zinc-800 leading-relaxed text-justify">
                 {personalInfo.summary}
@@ -136,13 +136,9 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
                     <div className="flex justify-between items-baseline italic text-zinc-800">
                       <span>
                         {edu.degree}
-                        {edu.field ? `; ${edu.field}` : ''}
+                        {edu.field ? ` in ${edu.field}` : ''}
+                        {edu.gpa ? ` — GPA: ${edu.gpa}` : ''}
                       </span>
-                      {edu.gpa && (
-                        <span className="not-italic text-[10px] text-zinc-700 font-sans">
-                          {edu.gpa}
-                        </span>
-                      )}
                     </div>
                     {edu.achievements && edu.achievements.length > 0 && (
                       <ul className="list-disc ml-5 mt-1 space-y-0.5 text-[10.5px] text-zinc-800">
@@ -161,7 +157,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
           {experience.filter(isItemVisible).length > 0 && (
             <div className="mt-3.5">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Work Experience
+                Experience
               </h2>
               <div className="space-y-3">
                 {experience.filter(isItemVisible).map((exp) => {
@@ -169,13 +165,13 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
                   return (
                     <div key={exp.id} className="text-[11px]">
                       <div className="flex justify-between items-baseline font-bold text-black">
-                        <span>{exp.company}</span>
+                        <span>{exp.role}</span>
                         <span className="font-normal font-sans text-[10px] text-zinc-800">
                           {exp.startDate} – {exp.endDate}
                         </span>
                       </div>
                       <div className="flex justify-between items-baseline italic text-zinc-800 mb-1">
-                        <span>{exp.role}</span>
+                        <span>{exp.company}</span>
                         <span className="not-italic text-[10px] text-zinc-700 font-sans">
                           {exp.location}
                         </span>
@@ -200,7 +196,7 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
           {projects.filter(isItemVisible).length > 0 && (
             <div className="mt-3.5">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Key Projects
+                Projects & Technical Initiatives
               </h2>
               <div className="space-y-3">
                 {projects.filter(isItemVisible).map((proj) => {
@@ -263,19 +259,19 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
               )}
               {skills.databases.length > 0 && (
                 <div>
-                  <strong className="text-black">Databases & Optimization:</strong>{' '}
+                  <strong className="text-black">Databases:</strong>{' '}
                   {skills.databases.join(', ')}
                 </div>
               )}
               {skills.devopsAndCloud.length > 0 && (
                 <div>
-                  <strong className="text-black">DevOps & Infrastructure:</strong>{' '}
+                  <strong className="text-black">DevOps & Cloud:</strong>{' '}
                   {skills.devopsAndCloud.join(', ')}
                 </div>
               )}
               {skills.toolsAndConcepts.length > 0 && (
                 <div>
-                  <strong className="text-black">Security & Architecture:</strong>{' '}
+                  <strong className="text-black">Architecture & Concepts:</strong>{' '}
                   {skills.toolsAndConcepts.join(', ')}
                 </div>
               )}

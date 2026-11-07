@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Code2,
   X,
-  TrendingUp,
   Eye,
   EyeOff,
   ChevronDown,
@@ -83,7 +82,8 @@ export const ProjectsEditor: React.FC<ProjectsEditorProps> = ({
       title: 'New High-Impact Project',
       role: 'Full-Stack Developer',
       techStack: ['TypeScript', 'Next.js', 'PostgreSQL'],
-      impactMetric: 'Scaled system with measurable throughput gains',
+      startDate: '2023',
+      endDate: 'Present',
       isHidden: false,
       hiddenBullets: [],
       bullets: [

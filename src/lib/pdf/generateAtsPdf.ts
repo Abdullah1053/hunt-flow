@@ -259,6 +259,9 @@ export async function generateAtsPdf(profile: MasterCvProfile): Promise<Buffer> 
         for (const proj of visibleProjects) {
           ensureSpace(34);
           let titleLine = sanitizeAtsText(proj.title);
+          if (proj.role) {
+            titleLine += ` - ${sanitizeAtsText(proj.role)}`;
+          }
           if (proj.techStack && proj.techStack.length > 0) {
             titleLine += ` | ${proj.techStack.map(sanitizeAtsText).join(', ')}`;
           }
@@ -266,20 +269,27 @@ export async function generateAtsPdf(profile: MasterCvProfile): Promise<Buffer> 
             ? `${sanitizeAtsText(proj.startDate)} - ${sanitizeAtsText(proj.endDate || 'Present')}`
             : '';
 
-          // Row 1: Title & Tech Stack (Bold left) & Dates (Normal right)
+          // Row 1: Title, Role & Tech Stack (Bold left) & Dates (Normal right)
           doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000000');
-          doc.text(titleLine, margin, currentY, { width: contentWidth - (dates ? 100 : 0), align: 'left' });
+          doc.text(titleLine, margin, currentY, { width: contentWidth - (dates ? 110 : 0), align: 'left' });
           if (dates) {
             doc.font('Helvetica').fontSize(9).fillColor('#222222');
             doc.text(dates, margin, currentY, { width: contentWidth, align: 'right' });
           }
           currentY += 13;
 
-          // Row 2: Role (Italic left)
-          if (proj.role) {
-            const roleText = sanitizeAtsText(proj.role);
-            doc.font('Helvetica-Oblique').fontSize(9).fillColor('#333333');
-            doc.text(roleText, margin, currentY, { width: contentWidth, align: 'left' });
+          // Row 2: Links (GitHub & Demo) if present
+          const linkParts: string[] = [];
+          if (proj.githubUrl) {
+            linkParts.push(`Code: ${sanitizeAtsText(proj.githubUrl.replace(/^https?:\/\//, ''))}`);
+          }
+          if (proj.demoUrl) {
+            linkParts.push(`Demo: ${sanitizeAtsText(proj.demoUrl.replace(/^https?:\/\//, ''))}`);
+          }
+          if (linkParts.length > 0) {
+            const linksLine = linkParts.join(' | ');
+            doc.font('Helvetica').fontSize(8.5).fillColor('#333333');
+            doc.text(linksLine, margin, currentY, { width: contentWidth, align: 'left' });
             currentY += 12;
           }
 
@@ -354,7 +364,10 @@ export async function generateAtsPdf(profile: MasterCvProfile): Promise<Buffer> 
       if (certifications && certifications.length > 0) {
         renderSectionHeader('CERTIFICATIONS');
         for (const cert of certifications) {
-          const certText = `${sanitizeAtsText(cert.name)} - ${sanitizeAtsText(cert.issuer)} (${sanitizeAtsText(cert.date)})`;
+          let certText = `${sanitizeAtsText(cert.name)} - ${sanitizeAtsText(cert.issuer)}`;
+          if (cert.date) certText += ` (${sanitizeAtsText(cert.date)})`;
+          if (cert.url) certText += ` | ${sanitizeAtsText(cert.url.replace(/^https?:\/\//, ''))}`;
+
           const cHeight = doc.heightOfString(certText, { width: contentWidth - 14, lineGap: 1.5 });
           ensureSpace(cHeight + 3);
 

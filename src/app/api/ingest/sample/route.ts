@@ -33,7 +33,7 @@ ${defaultProfile.experience[0]?.company}    ${defaultProfile.experience[0]?.loca
 ${defaultProfile.experience[0]?.bullets.map((b) => '• ' + b).join('\n')}
 
 PROJECTS & TECHNICAL INITIATIVES
-${defaultProfile.projects.map((p) => `${p.title} | ${p.techStack.join(', ')}    ${p.startDate} – ${p.endDate}\nImpact: ${p.impactMetric}\n${p.bullets.map((b) => '• ' + b).join('\n')}`).join('\n\n')}
+${defaultProfile.projects.map((p) => `${p.title} | ${p.techStack.join(', ')}    ${p.startDate} – ${p.endDate}\n${p.bullets.map((b) => '• ' + b).join('\n')}`).join('\n\n')}
 
 TECHNICAL SKILLS
 Languages: ${defaultProfile.skills.languages.join(', ')}

@@ -132,7 +132,6 @@ export function synthesizeDeterministicProfile(
       demoUrl: '',
       startDate: '2023',
       endDate: 'Present',
-      impactMetric: 'Scaled to 10k+ SKU catalog with sub-80ms search latency',
       bullets: [
         'Optimized MySQL/PostgreSQL queries, schema indexing, and caching with Redis to achieve sub-80ms search latency.',
         'Designed and implemented scalable APIs and backend services using modern TypeScript, Node.js, and ReactJS/Next.js.',
@@ -149,7 +148,6 @@ export function synthesizeDeterministicProfile(
       demoUrl: '',
       startDate: '2023',
       endDate: '2024',
-      impactMetric: 'Automated 100% of driver dispatch workflows with live webhook callbacks',
       bullets: [
         'Built robust backend logic and webhooks using PHP Laravel, deploying media assets directly to AWS S3 and managing database instances via AWS RDS.',
         'Worked with REST APIs and third-party integrations to connect mobile and web applications with backend services.',
@@ -170,7 +168,6 @@ export function synthesizeDeterministicProfile(
       demoUrl: '',
       startDate: '2024',
       endDate: 'Present',
-      impactMetric: `${repo.stargazers_count} GitHub stars & active community usage`,
       bullets: [
         `Architected open-source software project (${repo.name}) addressing developer productivity and systems engineering workflows.`,
         repo.description

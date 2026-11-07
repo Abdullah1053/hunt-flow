@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { HeaderNav } from '@/components/ingestion/HeaderNav';
 import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
 import { PipelineView } from '@/components/pipeline/PipelineView';
@@ -9,6 +9,7 @@ import { DocumentIngestCard } from '@/components/ingestion/DocumentIngestCard';
 import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
 import { synthesizePayload } from '@/lib/corpusAggregator';
 import { synthesizeDeterministicProfile, getDefaultMasterProfile } from '@/lib/deterministicSynthesizer';
+import { useHistoryState } from '@/lib/hooks/useHistoryState';
 import {
   GitHubUserProfile,
   GitHubRepoItem,
@@ -16,16 +17,24 @@ import {
   ExternalLink,
 } from '@/types/ingestion';
 import { MasterCvProfile } from '@/types/masterCv';
-import { X, Sparkles, UploadCloud, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, UploadCloud } from 'lucide-react';
 
 export default function HomePage() {
   // Main 2-tab navigation: 'builder' | 'archive'
   const [activeTab, setActiveTab] = useState<'builder' | 'archive'>('builder');
 
-  // Master CV Profile state
-  const [masterProfile, setMasterProfile] = useState<MasterCvProfile | null>(null);
+  // Master CV Profile state managed with Undo / Redo history
+  const history = useHistoryState<MasterCvProfile>(getDefaultMasterProfile(), {
+    maxHistory: 50,
+    debounceMs: 400,
+  });
+  const currentProfile = history.state;
+
   const [apiKey, setApiKey] = useState<string>('');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'idle'>('saved');
+  const isInitialLoadRef = useRef(true);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Ingestion data channels (collapsible drawer/modal)
   const [showImportDrawer, setShowImportDrawer] = useState(false);
@@ -45,27 +54,87 @@ export default function HomePage() {
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
 
-  // Restore API key and Master Profile from localStorage if present
+  // Restore API key and Master Profile from SQLite (with localStorage fallback)
   useEffect(() => {
     try {
       const savedKey = localStorage.getItem('huntflow_gemini_api_key');
       if (savedKey) setApiKey(savedKey);
+    } catch {}
 
-      const savedProfile = localStorage.getItem('huntflow_master_profile');
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed?.personalInfo?.fullName) {
-          setMasterProfile(parsed);
-          return;
+    async function loadMasterProfile() {
+      try {
+        const res = await fetch('/api/db/profile');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profile?.personalInfo?.fullName) {
+            history.reset(data.profile);
+            try {
+              localStorage.setItem('huntflow_master_profile', JSON.stringify(data.profile));
+            } catch {}
+            isInitialLoadRef.current = false;
+            return;
+          }
         }
+      } catch (e) {
+        console.warn('SQLite fetch failed, falling back to localStorage:', e);
       }
-    } catch (e) {
-      console.warn('Failed to restore from localStorage:', e);
+
+      // Fallback to localStorage if API route had an issue
+      try {
+        const savedProfile = localStorage.getItem('huntflow_master_profile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed?.personalInfo?.fullName) {
+            history.reset(parsed);
+            isInitialLoadRef.current = false;
+            return;
+          }
+        }
+      } catch {}
+
+      history.reset(getDefaultMasterProfile());
+      isInitialLoadRef.current = false;
     }
 
-    // Default to initial candidate profile if none stored
-    setMasterProfile(getDefaultMasterProfile());
+    loadMasterProfile();
   }, []);
+
+  // Debounced Auto-Save to SQLite Database
+  useEffect(() => {
+    if (isInitialLoadRef.current) return;
+
+    setSaveStatus('saving');
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/db/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: currentProfile }),
+        });
+        if (res.ok) {
+          setSaveStatus('saved');
+          try {
+            localStorage.setItem('huntflow_master_profile', JSON.stringify(currentProfile));
+          } catch {}
+        } else {
+          setSaveStatus('error');
+        }
+      } catch (err) {
+        console.error('Failed to auto-save profile to SQLite:', err);
+        setSaveStatus('error');
+      }
+    }, 600);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [currentProfile]);
 
   const handleUpdateApiKey = (newKey: string) => {
     setApiKey(newKey);
@@ -74,13 +143,8 @@ export default function HomePage() {
     } catch {}
   };
 
-  const handleUpdateMasterProfile = (updated: MasterCvProfile) => {
-    setMasterProfile(updated);
-    try {
-      localStorage.setItem('huntflow_master_profile', JSON.stringify(updated));
-    } catch (e) {
-      console.error('Failed to save master profile to localStorage:', e);
-    }
+  const handleUpdateMasterProfile = (updated: MasterCvProfile, isDiscrete?: boolean) => {
+    history.set(updated, isDiscrete);
   };
 
   // Staging payload from ingested data
@@ -115,17 +179,11 @@ export default function HomePage() {
       } else {
         profileToSet = synthesizeDeterministicProfile(stagingPayload);
       }
-      setMasterProfile(profileToSet);
-      try {
-        localStorage.setItem('huntflow_master_profile', JSON.stringify(profileToSet));
-      } catch {}
+      history.set(profileToSet, true);
     } catch (err) {
       console.warn('Synthesis request failed, utilizing local engine:', err);
       const local = synthesizeDeterministicProfile(stagingPayload);
-      setMasterProfile(local);
-      try {
-        localStorage.setItem('huntflow_master_profile', JSON.stringify(local));
-      } catch {}
+      history.set(local, true);
     } finally {
       setIsSynthesizing(false);
       setShowImportDrawer(false);
@@ -248,22 +306,14 @@ export default function HomePage() {
       if (sampleRes.ok) {
         const sampleData = await sampleRes.json();
         const initialProfile = sampleData.profile || getDefaultMasterProfile();
-        setMasterProfile(initialProfile);
-        try {
-          localStorage.setItem('huntflow_master_profile', JSON.stringify(initialProfile));
-        } catch {}
+        history.set(initialProfile, true);
       }
     } catch (error) {
       console.error('Error loading sample data:', error);
     } finally {
       setIsLoadingSample(false);
     }
-  }, []);
-
-  const currentProfile = useMemo(() => {
-    if (masterProfile) return masterProfile;
-    return getDefaultMasterProfile();
-  }, [masterProfile]);
+  }, [history]);
 
   // 1-Click Header Download ATS PDF
   const handleDownloadPdf = async () => {
@@ -299,10 +349,7 @@ export default function HomePage() {
 
   // Load an application's tailored CV snapshot directly into CV Builder
   const handleLoadCvInStudio = (snapshot: MasterCvProfile) => {
-    setMasterProfile(snapshot);
-    try {
-      localStorage.setItem('huntflow_master_profile', JSON.stringify(snapshot));
-    } catch {}
+    history.reset(snapshot);
     setActiveTab('builder');
   };
 
@@ -328,6 +375,11 @@ export default function HomePage() {
             isSynthesizing={isSynthesizing}
             apiKey={apiKey}
             onUpdateApiKey={handleUpdateApiKey}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
+            saveStatus={saveStatus}
           />
         )}
 

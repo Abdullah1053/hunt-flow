@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Download,
   Upload,
@@ -10,6 +10,10 @@ import {
   X,
   FileText,
   Loader2,
+  Undo2,
+  Redo2,
+  Database,
+  Check,
 } from 'lucide-react';
 import { MasterCvProfile } from '@/types/masterCv';
 import { PersonalInfoEditor } from './PersonalInfoEditor';
@@ -21,12 +25,17 @@ import { LiveAtsDocumentPreview } from './LiveAtsDocumentPreview';
 
 interface MasterCvStudioProps {
   profile: MasterCvProfile;
-  onUpdateProfile: (updated: MasterCvProfile) => void;
+  onUpdateProfile: (updated: MasterCvProfile, isDiscrete?: boolean) => void;
   onReSynthesize: () => void;
   isSynthesizing: boolean;
   apiKey: string;
   onUpdateApiKey: (key: string) => void;
   onProceedToStage3?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  saveStatus?: 'saved' | 'saving' | 'error' | 'idle';
 }
 
 export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
@@ -36,6 +45,11 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   isSynthesizing,
   apiKey,
   onUpdateApiKey,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  saveStatus = 'saved',
 }) => {
   const [activeTab, setActiveTab] = useState<
     'personal' | 'skills' | 'experience' | 'projects' | 'education' | 'preview'
@@ -46,6 +60,36 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Keyboard shortcuts for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'z') {
+          if (e.shiftKey) {
+            if (canRedo && onRedo) {
+              e.preventDefault();
+              onRedo();
+            }
+          } else {
+            if (canUndo && onUndo) {
+              e.preventDefault();
+              onUndo();
+            }
+          }
+        } else if (key === 'y') {
+          if (canRedo && onRedo) {
+            e.preventDefault();
+            onRedo();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, canRedo, onUndo, onRedo]);
+
   const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,7 +98,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed?.personalInfo && parsed?.skills) {
-          onUpdateProfile(parsed);
+          onUpdateProfile(parsed, true);
         } else {
           alert('Invalid Master CV JSON file structure.');
         }
@@ -153,6 +197,55 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* SQLite Auto-save status indicator */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium">
+            {saveStatus === 'saving' && (
+              <span className="flex items-center gap-1.5 text-amber-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="flex items-center gap-1.5 text-emerald-400" title="Synchronized with SQLite database">
+                <Database className="h-3 w-3" />
+                SQLite Synced
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="flex items-center gap-1.5 text-rose-400">
+                Sync Error
+              </span>
+            )}
+            {saveStatus === 'idle' && (
+              <span className="flex items-center gap-1.5 text-zinc-400">
+                <Database className="h-3 w-3 text-zinc-500" />
+                Ready
+              </span>
+            )}
+          </div>
+
+          {/* Undo / Redo buttons */}
+          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none transition"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none transition"
+              title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
           {/* Primary High-Contrast Download ATS PDF Button */}
           <button
             type="button"
@@ -263,7 +356,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <PersonalInfoEditor
                 personalInfo={profile.personalInfo}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, personalInfo: updated })
+                  onUpdateProfile({ ...profile, personalInfo: updated }, false)
                 }
               />
             )}
@@ -271,7 +364,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <SkillsEditor
                 skills={profile.skills}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, skills: updated })
+                  onUpdateProfile({ ...profile, skills: updated }, true)
                 }
               />
             )}
@@ -279,7 +372,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <ExperienceEditor
                 experience={profile.experience}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, experience: updated })
+                  onUpdateProfile({ ...profile, experience: updated }, false)
                 }
                 onOptimizeBullet={handleOptimizeBullet}
               />
@@ -288,7 +381,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <ProjectsEditor
                 projects={profile.projects}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, projects: updated })
+                  onUpdateProfile({ ...profile, projects: updated }, false)
                 }
                 onOptimizeBullet={handleOptimizeBullet}
               />
@@ -298,10 +391,10 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
                 education={profile.education}
                 certifications={profile.certifications}
                 onChangeEducation={(updated) =>
-                  onUpdateProfile({ ...profile, education: updated })
+                  onUpdateProfile({ ...profile, education: updated }, true)
                 }
                 onChangeCertifications={(updated) =>
-                  onUpdateProfile({ ...profile, certifications: updated })
+                  onUpdateProfile({ ...profile, certifications: updated }, true)
                 }
               />
             )}
@@ -309,7 +402,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <PersonalInfoEditor
                 personalInfo={profile.personalInfo}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, personalInfo: updated })
+                  onUpdateProfile({ ...profile, personalInfo: updated }, false)
                 }
               />
             )}
@@ -327,7 +420,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <PersonalInfoEditor
               personalInfo={profile.personalInfo}
               onChange={(updated) =>
-                onUpdateProfile({ ...profile, personalInfo: updated })
+                onUpdateProfile({ ...profile, personalInfo: updated }, false)
               }
             />
           )}
@@ -335,7 +428,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <SkillsEditor
               skills={profile.skills}
               onChange={(updated) =>
-                onUpdateProfile({ ...profile, skills: updated })
+                onUpdateProfile({ ...profile, skills: updated }, true)
               }
             />
           )}
@@ -343,7 +436,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <ExperienceEditor
               experience={profile.experience}
               onChange={(updated) =>
-                onUpdateProfile({ ...profile, experience: updated })
+                onUpdateProfile({ ...profile, experience: updated }, false)
               }
               onOptimizeBullet={handleOptimizeBullet}
             />
@@ -352,7 +445,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <ProjectsEditor
               projects={profile.projects}
               onChange={(updated) =>
-                onUpdateProfile({ ...profile, projects: updated })
+                onUpdateProfile({ ...profile, projects: updated }, false)
               }
               onOptimizeBullet={handleOptimizeBullet}
             />
@@ -362,10 +455,10 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               education={profile.education}
               certifications={profile.certifications}
               onChangeEducation={(updated) =>
-                onUpdateProfile({ ...profile, education: updated })
+                onUpdateProfile({ ...profile, education: updated }, true)
               }
               onChangeCertifications={(updated) =>
-                onUpdateProfile({ ...profile, certifications: updated })
+                onUpdateProfile({ ...profile, certifications: updated }, true)
               }
             />
           )}

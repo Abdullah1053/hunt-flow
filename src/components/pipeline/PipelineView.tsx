@@ -43,64 +43,129 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   const [expandedDescIds, setExpandedDescIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize from localStorage or sample data
+  // Initialize from SQLite database (with fallback to localStorage/sample)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('huntflow_applications');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setApplications(parsed);
-          return;
+    async function loadApplications() {
+      try {
+        const res = await fetch('/api/db/applications');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.applications)) {
+            setApplications(data.applications);
+            try {
+              localStorage.setItem('huntflow_applications', JSON.stringify(data.applications));
+            } catch {}
+            return;
+          }
         }
+      } catch (err) {
+        console.warn('Failed to load applications from SQLite, falling back:', err);
       }
-    } catch (e) {
-      console.error('Error loading stored applications:', e);
+
+      try {
+        const stored = localStorage.getItem('huntflow_applications');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setApplications(parsed);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error loading stored applications:', e);
+      }
+      const defaultApps = getSampleJobApplications();
+      setApplications(defaultApps);
+      try {
+        localStorage.setItem('huntflow_applications', JSON.stringify(defaultApps));
+      } catch {}
     }
-    const defaultApps = getSampleJobApplications();
-    setApplications(defaultApps);
-    try {
-      localStorage.setItem('huntflow_applications', JSON.stringify(defaultApps));
-    } catch {}
+
+    loadApplications();
   }, []);
 
-  const saveApplications = (updated: JobApplicationRecord[]) => {
-    setApplications(updated);
+  const handleStatusChange = async (appId: string, newStatus: JobApplicationStatus) => {
+    const target = applications.find((a) => a.id === appId);
+    if (!target) return;
+    const updated = { ...target, status: newStatus };
+    const updatedList = applications.map((app) =>
+      app.id === appId ? updated : app
+    );
+    setApplications(updatedList);
     try {
-      localStorage.setItem('huntflow_applications', JSON.stringify(updated));
+      localStorage.setItem('huntflow_applications', JSON.stringify(updatedList));
+      await fetch(`/api/db/applications/${encodeURIComponent(appId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application: updated }),
+      });
     } catch (e) {
-      console.error('Error saving applications to localStorage:', e);
+      console.error('Error persisting status change to SQLite:', e);
     }
   };
 
-  const handleStatusChange = (appId: string, newStatus: JobApplicationStatus) => {
-    const updated = applications.map((app) =>
-      app.id === appId ? { ...app, status: newStatus } : app
-    );
-    saveApplications(updated);
+  const handleAddApplication = async (newRecord: JobApplicationRecord) => {
+    const updatedList = [newRecord, ...applications];
+    setApplications(updatedList);
+    try {
+      localStorage.setItem('huntflow_applications', JSON.stringify(updatedList));
+      await fetch('/api/db/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application: newRecord }),
+      });
+    } catch (e) {
+      console.error('Error saving application to SQLite:', e);
+    }
   };
 
-  const handleAddApplication = (newRecord: JobApplicationRecord) => {
-    const updated = [newRecord, ...applications];
-    saveApplications(updated);
-  };
-
-  const handleUpdateApplication = (updatedApp: JobApplicationRecord) => {
-    const updated = applications.map((a) => (a.id === updatedApp.id ? updatedApp : a));
-    saveApplications(updated);
+  const handleUpdateApplication = async (updatedApp: JobApplicationRecord) => {
+    const updatedList = applications.map((a) => (a.id === updatedApp.id ? updatedApp : a));
+    setApplications(updatedList);
     setSelectedApp(null);
+    try {
+      localStorage.setItem('huntflow_applications', JSON.stringify(updatedList));
+      await fetch(`/api/db/applications/${encodeURIComponent(updatedApp.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application: updatedApp }),
+      });
+    } catch (e) {
+      console.error('Error updating application in SQLite:', e);
+    }
   };
 
-  const handleDeleteApplication = (id: string) => {
-    const updated = applications.filter((a) => a.id !== id);
-    saveApplications(updated);
+  const handleDeleteApplication = async (id: string) => {
+    const updatedList = applications.filter((a) => a.id !== id);
+    setApplications(updatedList);
     setSelectedApp(null);
+    try {
+      localStorage.setItem('huntflow_applications', JSON.stringify(updatedList));
+      await fetch(`/api/db/applications/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      console.error('Error deleting application from SQLite:', e);
+    }
   };
 
   const handleResetToDemo = () => {
     if (confirm('Reset Job Archive to sample records?')) {
       const defaultApps = getSampleJobApplications();
-      saveApplications(defaultApps);
+      setApplications(defaultApps);
+      try {
+        localStorage.setItem('huntflow_applications', JSON.stringify(defaultApps));
+      } catch {}
+      // Sync sample applications to SQLite
+      defaultApps.forEach(async (app) => {
+        try {
+          await fetch('/api/db/applications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ application: app }),
+          });
+        } catch {}
+      });
     }
   };
 
@@ -118,11 +183,23 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
-          saveApplications(parsed);
+          setApplications(parsed);
+          try {
+            localStorage.setItem('huntflow_applications', JSON.stringify(parsed));
+          } catch {}
+          for (const app of parsed) {
+            try {
+              await fetch('/api/db/applications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ application: app }),
+              });
+            } catch {}
+          }
           alert(`Successfully imported ${parsed.length} applications!`);
         } else {
           alert('Invalid backup file.');

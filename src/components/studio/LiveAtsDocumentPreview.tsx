@@ -1,16 +1,73 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
-import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { generateAtsPlainText } from '@/lib/pdf/atsPlainText';
+import {
+  Download,
+  EyeOff,
+  Loader2,
+  FileText,
+  Copy,
+  Check,
+  RotateCw,
+  FileCode,
+  Layers,
+} from 'lucide-react';
 
 interface LiveAtsDocumentPreviewProps {
   profile: MasterCvProfile;
 }
 
+type PreviewMode = 'formatted' | 'pdf' | 'text';
+
 export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ profile }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<PreviewMode>('formatted');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [hasCopiedText, setHasCopiedText] = useState(false);
+
+  // Generate deterministic ATS Plain Text
+  const plainText = useMemo(() => generateAtsPlainText(profile), [profile]);
+
+  // Fetch PDF Blob URL for Live PDF View mode
+  const fetchPdfBlob = useCallback(async () => {
+    setIsLoadingPdf(true);
+    try {
+      const res = await fetch('/api/cv/download-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile }),
+      });
+      if (!res.ok) throw new Error('Failed to generate PDF stream');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPdfBlobUrl((prev) => {
+        if (prev) window.URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err: any) {
+      console.error('Error generating live PDF:', err);
+    } finally {
+      setIsLoadingPdf(false);
+    }
+  }, [profile]);
+
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) window.URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
+  // Automatically fetch PDF when user switches to 'pdf' mode if not already fetched
+  useEffect(() => {
+    if (mode === 'pdf') {
+      fetchPdfBlob();
+    }
+  }, [mode, fetchPdfBlob]);
 
   const handleDownloadPdf = async () => {
     try {
@@ -41,6 +98,16 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
     }
   };
 
+  const handleCopyPlainText = async () => {
+    try {
+      await navigator.clipboard.writeText(plainText);
+      setHasCopiedText(true);
+      setTimeout(() => setHasCopiedText(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
   const { personalInfo, skills, experience, projects, education, certifications } = profile;
 
   // Calculate hidden items and bullets count
@@ -66,265 +133,428 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
 
   return (
     <div className="space-y-4">
-      {/* Top action bar - Hidden from print */}
-      <div className="no-print flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-        <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-          <Eye className="h-4 w-4 text-indigo-400" />
-          <span>ATS Document Preview (Jake&apos;s Resume / Harvard Standard)</span>
-          {totalHiddenCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+      {/* Top action bar with 3-Mode Segmented Toggle Bar */}
+      <div className="no-print p-3 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-lg">
+        {/* Mode Segmented Controls */}
+        <div className="flex items-center p-1 bg-zinc-950 rounded-xl border border-zinc-800/80">
+          <button
+            type="button"
+            onClick={() => setMode('formatted')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              mode === 'formatted'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5 text-indigo-400" />
+            <span>Formatted Preview</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMode('pdf')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              mode === 'pdf'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Live PDF View</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMode('text')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              mode === 'text'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <FileCode className="h-3.5 w-3.5 text-amber-400" />
+            <span>ATS Plain Text</span>
+          </button>
+        </div>
+
+        {/* Action Controls for Active Mode */}
+        <div className="flex items-center gap-2 self-end sm:self-center">
+          {totalHiddenCount > 0 && mode === 'formatted' && (
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
               <EyeOff className="h-3 w-3" />
-              {totalHiddenCount} hidden from preview
+              {totalHiddenCount} hidden
             </span>
           )}
-        </div>
-        <button
-          type="button"
-          onClick={handleDownloadPdf}
-          disabled={isDownloading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm disabled:opacity-50"
-        >
-          {isDownloading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
+
+          {mode === 'pdf' && (
+            <button
+              type="button"
+              onClick={fetchPdfBlob}
+              disabled={isLoadingPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition disabled:opacity-50"
+              title="Re-render PDF with current profile state"
+            >
+              <RotateCw className={`h-3.5 w-3.5 ${isLoadingPdf ? 'animate-spin text-emerald-400' : ''}`} />
+              <span>Refresh PDF</span>
+            </button>
           )}
-          <span>{isDownloading ? 'Generating...' : 'Download ATS PDF'}</span>
-        </button>
+
+          {mode === 'text' && (
+            <button
+              type="button"
+              onClick={handleCopyPlainText}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 transition shadow-sm"
+              title="Copy 100% ATS-ready text to clipboard"
+            >
+              {hasCopiedText ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-zinc-950" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 text-zinc-950" />
+                  <span>Copy Entire CV (ATS Text)</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm disabled:opacity-50"
+            title="Download ATS PDF file"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span>{isDownloading ? 'Generating...' : 'Download PDF'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Printable Sheet */}
-      <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 print:bg-white print:border-none print:p-0 print:m-0">
-        <div
-          ref={printRef}
-          id="ats-resume-document"
-          className="printable-resume-sheet w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
-          style={{ fontFamily: "'Times New Roman', Times, serif" }}
-        >
-          {/* HEADER */}
-          <div className="text-center pb-3">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-normal uppercase text-black">
-              {personalInfo.fullName || 'Candidate Name'}
-            </h1>
+      {/* MODE 1: Formatted Sheet Preview */}
+      {mode === 'formatted' && (
+        <div className="overflow-x-auto flex justify-center py-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 print:bg-white print:border-none print:p-0 print:m-0">
+          <div
+            ref={printRef}
+            id="ats-resume-document"
+            className="printable-resume-sheet w-full max-w-[850px] bg-white text-zinc-900 p-8 sm:p-12 shadow-2xl rounded-sm font-serif leading-normal select-text print:p-0 print:shadow-none print:max-w-none print:w-full"
+            style={{ fontFamily: "'Times New Roman', Times, serif" }}
+          >
+            {/* HEADER */}
+            <div className="text-center pb-3">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-normal uppercase text-black">
+                {personalInfo.fullName || 'Candidate Name'}
+              </h1>
 
-            {/* Sub-headline */}
-            {personalInfo.headline && (
-              <p className="text-[12px] font-sans text-zinc-700 font-semibold tracking-wide uppercase mt-1">
-                {personalInfo.headline}
-              </p>
-            )}
+              {/* Sub-headline */}
+              {personalInfo.headline && (
+                <p className="text-[12px] font-sans text-zinc-700 font-semibold tracking-wide uppercase mt-1">
+                  {personalInfo.headline}
+                </p>
+              )}
 
-            {/* Contact Information Bar */}
-            <div className="text-[11px] font-sans text-zinc-700 mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
-              {contactParts.map((item, idx) => (
-                <React.Fragment key={idx}>
-                  {item.href ? (
-                    <a
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="hover:underline text-zinc-800"
-                    >
-                      {item.text}
-                    </a>
-                  ) : (
-                    <span>{item.text}</span>
-                  )}
-                  {idx < contactParts.length - 1 && <span className="text-zinc-400">•</span>}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          {/* SUMMARY */}
-          {personalInfo.summary && (
-            <div className="mt-3">
-              <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Professional Summary
-              </h2>
-              <p className="text-[11px] font-sans text-zinc-800 leading-relaxed text-justify">
-                {personalInfo.summary}
-              </p>
-            </div>
-          )}
-
-          {/* EDUCATION */}
-          {education.length > 0 && (
-            <div className="mt-3.5">
-              <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Education
-              </h2>
-              <div className="space-y-2">
-                {education.map((edu) => (
-                  <div key={edu.id} className="text-[11px]">
-                    <div className="flex justify-between items-baseline font-bold text-black">
-                      <span>{edu.institution}</span>
-                      <span className="font-normal font-sans text-[10px] text-zinc-800">
-                        {edu.startDate} – {edu.endDate}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-baseline italic text-zinc-800">
-                      <span>
-                        {edu.degree}
-                        {edu.field ? ` in ${edu.field}` : ''}
-                        {edu.gpa ? ` — GPA: ${edu.gpa}` : ''}
-                      </span>
-                    </div>
-                    {edu.achievements && edu.achievements.length > 0 && (
-                      <ul className="list-disc ml-5 mt-1 space-y-0.5 text-[10.5px] text-zinc-800">
-                        {edu.achievements.map((ach, aIdx) => (
-                          <li key={aIdx}>{ach}</li>
-                        ))}
-                      </ul>
+              {/* Contact Information Bar */}
+              <div className="text-[11px] font-sans text-zinc-700 mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+                {contactParts.map((item, idx) => (
+                  <React.Fragment key={idx}>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:underline text-zinc-800"
+                      >
+                        {item.text}
+                      </a>
+                    ) : (
+                      <span>{item.text}</span>
                     )}
-                  </div>
+                    {idx < contactParts.length - 1 && <span className="text-zinc-400">•</span>}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* WORK EXPERIENCE */}
-          {experience.filter(isItemVisible).length > 0 && (
-            <div className="mt-3.5">
-              <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Experience
-              </h2>
-              <div className="space-y-3">
-                {experience.filter(isItemVisible).map((exp) => {
-                  const visibleBullets = getVisibleBullets(exp);
-                  return (
-                    <div key={exp.id} className="text-[11px]">
+            {/* SUMMARY */}
+            {personalInfo.summary && (
+              <div className="mt-3">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Professional Summary
+                </h2>
+                <p className="text-[11px] font-sans text-zinc-800 leading-relaxed text-justify">
+                  {personalInfo.summary}
+                </p>
+              </div>
+            )}
+
+            {/* EDUCATION */}
+            {education.length > 0 && (
+              <div className="mt-3.5">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Education
+                </h2>
+                <div className="space-y-2">
+                  {education.map((edu) => (
+                    <div key={edu.id} className="text-[11px]">
                       <div className="flex justify-between items-baseline font-bold text-black">
-                        <span>{exp.role}</span>
+                        <span>{edu.institution}</span>
                         <span className="font-normal font-sans text-[10px] text-zinc-800">
-                          {exp.startDate} – {exp.endDate}
+                          {edu.startDate} – {edu.endDate}
                         </span>
                       </div>
-                      <div className="flex justify-between items-baseline italic text-zinc-800 mb-1">
-                        <span>{exp.company}</span>
-                        <span className="not-italic text-[10px] text-zinc-700 font-sans">
-                          {exp.location}
+                      <div className="flex justify-between items-baseline italic text-zinc-800">
+                        <span>
+                          {edu.degree}
+                          {edu.field ? ` in ${edu.field}` : ''}
+                          {edu.gpa ? ` — GPA: ${edu.gpa}` : ''}
                         </span>
                       </div>
-                      {visibleBullets.length > 0 && (
-                        <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal">
-                          {visibleBullets.map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-justify">
-                              {bullet}
-                            </li>
+                      {edu.achievements && edu.achievements.length > 0 && (
+                        <ul className="list-disc ml-5 mt-1 space-y-0.5 text-[10.5px] text-zinc-800">
+                          {edu.achievements.map((ach, aIdx) => (
+                            <li key={aIdx}>{ach}</li>
                           ))}
                         </ul>
                       )}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* PROJECTS */}
-          {projects.filter(isItemVisible).length > 0 && (
-            <div className="mt-3.5">
-              <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Projects & Technical Initiatives
-              </h2>
-              <div className="space-y-3">
-                {projects.filter(isItemVisible).map((proj) => {
-                  const visibleBullets = getVisibleBullets(proj);
-                  return (
-                    <div key={proj.id} className="text-[11px]">
-                      <div className="flex justify-between items-baseline font-bold text-black">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span>{proj.title}</span>
-                          {proj.techStack.length > 0 && (
-                            <span className="font-normal italic text-zinc-700 text-[10px]">
-                              | {proj.techStack.join(', ')}
+            {/* WORK EXPERIENCE */}
+            {experience.filter(isItemVisible).length > 0 && (
+              <div className="mt-3.5">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Experience
+                </h2>
+                <div className="space-y-3">
+                  {experience.filter(isItemVisible).map((exp) => {
+                    const visibleBullets = getVisibleBullets(exp);
+                    return (
+                      <div key={exp.id} className="text-[11px]">
+                        <div className="flex justify-between items-baseline font-bold text-black">
+                          <span>{exp.role}</span>
+                          <span className="font-normal font-sans text-[10px] text-zinc-800">
+                            {exp.startDate} – {exp.endDate}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-baseline italic text-zinc-800 mb-1">
+                          <span>{exp.company}</span>
+                          <span className="not-italic text-[10px] text-zinc-700 font-sans">
+                            {exp.location}
+                          </span>
+                        </div>
+                        {visibleBullets.length > 0 && (
+                          <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal">
+                            {visibleBullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-justify">
+                                {bullet}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* PROJECTS */}
+            {projects.filter(isItemVisible).length > 0 && (
+              <div className="mt-3.5">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Projects & Technical Initiatives
+                </h2>
+                <div className="space-y-3">
+                  {projects.filter(isItemVisible).map((proj) => {
+                    const visibleBullets = getVisibleBullets(proj);
+                    return (
+                      <div key={proj.id} className="text-[11px]">
+                        <div className="flex justify-between items-baseline font-bold text-black flex-wrap gap-x-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{proj.title}</span>
+                            {proj.role && (
+                              <span className="font-semibold text-zinc-800 text-[11px]">
+                                — {proj.role}
+                              </span>
+                            )}
+                            {proj.techStack && proj.techStack.length > 0 && (
+                              <span className="font-normal italic text-zinc-700 text-[10px]">
+                                | {proj.techStack.join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          {proj.startDate && (
+                            <span className="font-normal font-sans text-[10px] text-zinc-800 shrink-0">
+                              {proj.startDate} - {proj.endDate || 'Present'}
                             </span>
                           )}
                         </div>
-                        {proj.startDate && (
-                          <span className="font-normal font-sans text-[10px] text-zinc-800 shrink-0">
-                            {proj.startDate} - {proj.endDate || 'Present'}
-                          </span>
+
+                        {/* Project Code / Demo Links */}
+                        {(proj.githubUrl || proj.demoUrl) && (
+                          <div className="flex items-center gap-3 text-[10.5px] font-sans text-zinc-700 mt-0.5">
+                            {proj.githubUrl && (
+                              <a
+                                href={proj.githubUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="hover:underline text-indigo-700"
+                              >
+                                Code: {proj.githubUrl.replace(/^https?:\/\//, '')}
+                              </a>
+                            )}
+                            {proj.demoUrl && (
+                              <a
+                                href={proj.demoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="hover:underline text-indigo-700"
+                              >
+                                Demo: {proj.demoUrl.replace(/^https?:\/\//, '')}
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {visibleBullets.length > 0 && (
+                          <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal mt-1">
+                            {visibleBullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-justify">
+                                {bullet}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
-                      {proj.role && (
-                        <div className="italic text-zinc-800 text-[10.5px]">
-                          {proj.role}
-                        </div>
-                      )}
-                      {visibleBullets.length > 0 && (
-                        <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal mt-1">
-                          {visibleBullets.map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-justify">
-                              {bullet}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TECHNICAL SKILLS */}
-          <div className="mt-3.5">
-            <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-              Technical Skills
-            </h2>
-            <div className="text-[10.5px] space-y-1 text-zinc-900 font-sans">
-              {skills.languages.length > 0 && (
-                <div>
-                  <strong className="text-black">Languages:</strong>{' '}
-                  {skills.languages.join(', ')}
-                </div>
-              )}
-              {skills.frameworks.length > 0 && (
-                <div>
-                  <strong className="text-black">Frameworks & Libraries:</strong>{' '}
-                  {skills.frameworks.join(', ')}
-                </div>
-              )}
-              {skills.databases.length > 0 && (
-                <div>
-                  <strong className="text-black">Databases:</strong>{' '}
-                  {skills.databases.join(', ')}
-                </div>
-              )}
-              {skills.devopsAndCloud.length > 0 && (
-                <div>
-                  <strong className="text-black">DevOps & Cloud:</strong>{' '}
-                  {skills.devopsAndCloud.join(', ')}
-                </div>
-              )}
-              {skills.toolsAndConcepts.length > 0 && (
-                <div>
-                  <strong className="text-black">Architecture & Concepts:</strong>{' '}
-                  {skills.toolsAndConcepts.join(', ')}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* CERTIFICATIONS */}
-          {certifications.length > 0 && (
+            {/* TECHNICAL SKILLS */}
             <div className="mt-3.5">
               <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Certifications & Achievements
+                Technical Skills
               </h2>
-              <ul className="list-disc ml-5 text-[10.5px] text-zinc-900 font-sans space-y-0.5">
-                {certifications.map((c) => (
-                  <li key={c.id}>
-                    <strong>{c.name}</strong> — {c.issuer} ({c.date})
-                  </li>
-                ))}
-              </ul>
+              <div className="text-[10.5px] space-y-1 text-zinc-900 font-sans">
+                {skills.languages.length > 0 && (
+                  <div>
+                    <strong className="text-black">Languages:</strong>{' '}
+                    {skills.languages.join(', ')}
+                  </div>
+                )}
+                {skills.frameworks.length > 0 && (
+                  <div>
+                    <strong className="text-black">Frameworks & Libraries:</strong>{' '}
+                    {skills.frameworks.join(', ')}
+                  </div>
+                )}
+                {skills.databases.length > 0 && (
+                  <div>
+                    <strong className="text-black">Databases:</strong>{' '}
+                    {skills.databases.join(', ')}
+                  </div>
+                )}
+                {skills.devopsAndCloud.length > 0 && (
+                  <div>
+                    <strong className="text-black">DevOps & Cloud:</strong>{' '}
+                    {skills.devopsAndCloud.join(', ')}
+                  </div>
+                )}
+                {skills.toolsAndConcepts.length > 0 && (
+                  <div>
+                    <strong className="text-black">Architecture & Concepts:</strong>{' '}
+                    {skills.toolsAndConcepts.join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* CERTIFICATIONS */}
+            {certifications.length > 0 && (
+              <div className="mt-3.5">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Certifications & Achievements
+                </h2>
+                <ul className="list-disc ml-5 text-[10.5px] text-zinc-900 font-sans space-y-0.5">
+                  {certifications.map((c) => (
+                    <li key={c.id}>
+                      <strong>{c.name}</strong> — {c.issuer} {c.date ? `(${c.date})` : ''}
+                      {c.url && (
+                        <span className="ml-1.5 font-normal text-zinc-600">
+                          |{' '}
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:underline text-indigo-700"
+                          >
+                            {c.url.replace(/^https?:\/\//, '')}
+                          </a>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODE 2: Live PDF View */}
+      {mode === 'pdf' && (
+        <div className="relative rounded-2xl bg-zinc-900 border border-zinc-800 p-2 shadow-2xl overflow-hidden min-h-[850px] flex flex-col justify-center items-center">
+          {isLoadingPdf && (
+            <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
+              <p className="text-xs text-zinc-300 font-medium">Generating Live ATS PDF binary...</p>
+            </div>
+          )}
+          {pdfBlobUrl ? (
+            <iframe
+              src={pdfBlobUrl}
+              className="w-full h-[850px] rounded-xl border border-zinc-800 bg-white"
+              title="Live ATS PDF Preview"
+            />
+          ) : (
+            <div className="text-center py-24 space-y-3">
+              <FileText className="h-10 w-10 text-zinc-600 mx-auto" />
+              <p className="text-xs text-zinc-400">PDF not loaded yet.</p>
+              <button
+                type="button"
+                onClick={fetchPdfBlob}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                Render PDF
+              </button>
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* MODE 3: ATS Plain Text (Copyable) */}
+      {mode === 'text' && (
+        <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl space-y-3">
+          <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
+            <span>Deterministic ATS Plain Text (100% Parser Compliant)</span>
+            <span>{plainText.length} characters</span>
+          </div>
+          <pre className="w-full p-5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed whitespace-pre-wrap select-all overflow-x-auto min-h-[600px] max-h-[850px]">
+            {plainText}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };

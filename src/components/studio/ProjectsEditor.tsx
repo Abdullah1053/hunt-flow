@@ -14,6 +14,7 @@ import {
   EyeOff,
   ChevronDown,
   ChevronUp,
+  Calendar,
 } from 'lucide-react';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { ProjectItem } from '@/types/masterCv';
@@ -237,6 +238,11 @@ export const ProjectsEditor: React.FC<ProjectsEditorProps> = ({
                             ({proj.role})
                           </span>
                         )}
+                        {proj.startDate && (
+                          <span className="text-[11px] text-zinc-500 font-mono">
+                            • {proj.startDate} - {proj.endDate || 'Present'}
+                          </span>
+                        )}
                         {proj.techStack.length > 0 && (
                           <span className="text-[11px] text-cyan-400/80 font-mono">
                             • {proj.techStack.slice(0, 3).join(', ')}{proj.techStack.length > 3 ? '...' : ''}
@@ -321,21 +327,37 @@ export const ProjectsEditor: React.FC<ProjectsEditorProps> = ({
               {/* Collapsed body is hidden, expanded body shows details */}
               {!isCollapsed && (
                 <>
-                  {/* Middle row: Impact metric & URLs */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Middle row: Dates, URLs & Impact metric */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-[11px] font-medium text-zinc-400 mb-1 flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3 text-cyan-400" />
-                        Primary Impact Metric
+                        <Calendar className="h-3 w-3 text-cyan-400" />
+                        Start Date
                       </label>
                       <input
                         type="text"
-                        value={proj.impactMetric || ''}
+                        value={proj.startDate || ''}
                         onChange={(e) =>
-                          handleUpdateProject(proj.id, { impactMetric: e.target.value })
+                          handleUpdateProject(proj.id, { startDate: e.target.value })
                         }
-                        placeholder="e.g. Sub-80ms search latency across 10k items"
-                        className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-cyan-300 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        placeholder="e.g. 2023 or Jan 2023"
+                        className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-400 mb-1 flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-cyan-400" />
+                        End Date
+                      </label>
+                      <input
+                        type="text"
+                        value={proj.endDate || ''}
+                        onChange={(e) =>
+                          handleUpdateProject(proj.id, { endDate: e.target.value })
+                        }
+                        placeholder="e.g. Present or 2024"
+                        className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                       />
                     </div>
 

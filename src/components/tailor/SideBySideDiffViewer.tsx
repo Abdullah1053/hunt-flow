@@ -11,9 +11,9 @@ import {
   CheckCircle2,
   FileText,
   Layers,
-  Printer,
+  Download,
+  Loader2,
 } from 'lucide-react';
-import { printIsolatedElement } from '@/lib/pdf/printUtils';
 
 interface SideBySideDiffViewerProps {
   masterProfile: MasterCvProfile;
@@ -25,12 +25,42 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
   tailoredProfile,
 }) => {
   const [viewMode, setViewMode] = useState<'diff' | 'tailoredDocument'>('diff');
+  const [isDownloading, setIsDownloading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const { profile: tailored } = tailoredProfile;
 
-  const handlePrintTailored = () => {
-    printIsolatedElement(printRef.current, '');
+  const handleDownloadTailored = async () => {
+    try {
+      setIsDownloading(true);
+      const res = await fetch('/api/cv/download-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: tailored }),
+      });
+      if (!res.ok) throw new Error('Failed to generate PDF document');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (tailored.personalInfo.fullName || 'Candidate').replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      const safeCompany = (tailoredProfile.company || 'Tailored').replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      a.download = `${safeName}_${safeCompany}_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert('Error downloading PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -242,11 +272,16 @@ export const SideBySideDiffViewer: React.FC<SideBySideDiffViewerProps> = ({
             </span>
             <button
               type="button"
-              onClick={handlePrintTailored}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
+              onClick={handleDownloadTailored}
+              disabled={isDownloading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm disabled:opacity-50"
             >
-              <Printer className="h-3.5 w-3.5" />
-              Print Tailored CV
+              {isDownloading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              <span>{isDownloading ? 'Generating...' : 'Download Tailored PDF'}</span>
             </button>
           </div>
 

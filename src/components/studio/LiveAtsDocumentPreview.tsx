@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
-import { Printer, Download, Eye, ExternalLink, EyeOff } from 'lucide-react';
-import { printIsolatedElement } from '@/lib/pdf/printUtils';
+import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 interface LiveAtsDocumentPreviewProps {
   profile: MasterCvProfile;
@@ -11,9 +10,35 @@ interface LiveAtsDocumentPreviewProps {
 
 export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ profile }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const handlePrint = () => {
-    printIsolatedElement(printRef.current, '');
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloading(true);
+      const res = await fetch('/api/cv/download-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile }),
+      });
+      if (!res.ok) throw new Error('Failed to generate PDF document');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (profile.personalInfo.fullName || 'Candidate').replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      a.download = `${safeName}_ATS_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert('Error downloading PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const { personalInfo, skills, experience, projects, education, certifications } = profile;
@@ -55,11 +80,16 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
         </div>
         <button
           type="button"
-          onClick={handlePrint}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition shadow-sm"
+          onClick={handleDownloadPdf}
+          disabled={isDownloading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm disabled:opacity-50"
         >
-          <Printer className="h-3.5 w-3.5" />
-          Print / Save PDF
+          {isDownloading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          <span>{isDownloading ? 'Generating...' : 'Download ATS PDF'}</span>
         </button>
       </div>
 
@@ -214,14 +244,14 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
                         </div>
                         {proj.startDate && (
                           <span className="font-normal font-sans text-[10px] text-zinc-800 shrink-0">
-                            {proj.startDate} – {proj.endDate || 'Present'}
+                            {proj.startDate} - {proj.endDate || 'Present'}
                           </span>
                         )}
                       </div>
-                      {proj.impactMetric && (
-                        <p className="text-[10px] font-sans font-semibold text-zinc-700 italic mt-0.5">
-                          Impact: {proj.impactMetric}
-                        </p>
+                      {proj.role && (
+                        <div className="italic text-zinc-800 text-[10.5px]">
+                          {proj.role}
+                        </div>
                       )}
                       {visibleBullets.length > 0 && (
                         <ul className="list-disc ml-5 space-y-1 text-[10.5px] text-zinc-900 leading-normal mt-1">

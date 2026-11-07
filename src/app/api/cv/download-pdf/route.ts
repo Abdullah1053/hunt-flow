@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import React from 'react';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { AtsPdfDocument } from '@/lib/pdf/AtsPdfDocument';
+import { generateAtsPdf } from '@/lib/pdf/generateAtsPdf';
 import { MasterCvProfile } from '@/types/masterCv';
 import { getDefaultMasterProfile } from '@/lib/deterministicSynthesizer';
 
@@ -22,8 +20,7 @@ export async function POST(req: NextRequest) {
       profile = getFallbackProfile();
     }
 
-    const docElement = React.createElement(AtsPdfDocument, { profile });
-    const buffer = await renderToBuffer(docElement as any);
+    const buffer = await generateAtsPdf(profile);
 
     const safeName = (profile.personalInfo.fullName || 'Candidate')
       .replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -53,8 +50,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const profile = getFallbackProfile();
-    const docElement = React.createElement(AtsPdfDocument, { profile });
-    const buffer = await renderToBuffer(docElement as any);
+    const buffer = await generateAtsPdf(profile);
 
     const safeName = (profile.personalInfo.fullName || 'Candidate')
       .replace(/[^a-zA-Z0-9_-]/g, '_');

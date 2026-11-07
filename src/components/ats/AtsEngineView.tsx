@@ -6,7 +6,6 @@ import { runAtsAudit } from '@/lib/atsEngine/atsScorer';
 import { AtsScoreCard } from './AtsScoreCard';
 import {
   Download,
-  Printer,
   Copy,
   Check,
   FileText,
@@ -17,7 +16,6 @@ import {
   Sparkles,
   Loader2,
 } from 'lucide-react';
-import { printIsolatedElement } from '@/lib/pdf/printUtils';
 
 interface AtsEngineViewProps {
   profile: MasterCvProfile;
@@ -156,10 +154,6 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
     setTimeout(() => setCopiedText(false), 2000);
   };
 
-  const handlePrint = () => {
-    printIsolatedElement(printRef.current, '');
-  };
-
   return (
     <div className="space-y-6">
       {/* Header Bar - Hidden from print */}
@@ -188,15 +182,6 @@ export const AtsEngineView: React.FC<AtsEngineViewProps> = ({
               <Download className="h-4 w-4" />
             )}
             Download ATS Vector PDF
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Print
           </button>
         </div>
       </div>

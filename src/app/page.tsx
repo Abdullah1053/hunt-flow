@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { HeaderNav } from '@/components/ingestion/HeaderNav';
 import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
 import { PipelineView } from '@/components/pipeline/PipelineView';
+import { CareerTrackView } from '@/components/career/CareerTrackView';
 import { GitHubIngestCard } from '@/components/ingestion/GitHubIngestCard';
 import { DocumentIngestCard } from '@/components/ingestion/DocumentIngestCard';
 import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
@@ -21,8 +22,8 @@ import { MasterCvProfile } from '@/types/masterCv';
 import { X, Sparkles, UploadCloud } from 'lucide-react';
 
 export default function HomePage() {
-  // Main 2-tab navigation: 'builder' | 'archive'
-  const [activeTab, setActiveTab] = useState<'builder' | 'archive'>('builder');
+  // Main 3-tab navigation: 'builder' | 'career' | 'archive'
+  const [activeTab, setActiveTab] = useState<'builder' | 'career' | 'archive'>('builder');
 
   // Master CV Profile state managed with Undo / Redo history
   const history = useHistoryState<MasterCvProfile>(getDefaultMasterProfile(), {
@@ -432,7 +433,17 @@ export default function HomePage() {
           />
         )}
 
-        {/* TAB 2: Job Archive */}
+        {/* TAB 2: Career Track Vault */}
+        {activeTab === 'career' && (
+          <CareerTrackView
+            masterProfile={currentProfile}
+            onUpdateMasterProfile={handleUpdateMasterProfile}
+            aiConfig={aiConfig}
+            onNavigateToStudio={() => setActiveTab('builder')}
+          />
+        )}
+
+        {/* TAB 3: Job Archive */}
         {activeTab === 'archive' && (
           <PipelineView
             masterProfile={currentProfile}

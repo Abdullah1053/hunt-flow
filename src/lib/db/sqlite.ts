@@ -50,6 +50,22 @@ export function getDatabase(): Database.Database {
       value_json TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS career_track_entries (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      organization TEXT NOT NULL,
+      location TEXT,
+      startDate TEXT,
+      endDate TEXT,
+      rawNotes TEXT,
+      bulletsJson TEXT,
+      techTagsJson TEXT,
+      linksJson TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
   `);
 
   dbInstance = db;

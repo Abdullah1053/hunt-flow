@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Layers, Download, Briefcase, FileText, Loader2, UploadCloud } from 'lucide-react';
+import { Layers, Download, Briefcase, FileText, Loader2, UploadCloud, Database } from 'lucide-react';
 
 interface HeaderNavProps {
-  activeTab: 'builder' | 'archive';
-  setActiveTab: (tab: 'builder' | 'archive') => void;
+  activeTab: 'builder' | 'career' | 'archive';
+  setActiveTab: (tab: 'builder' | 'career' | 'archive') => void;
   onDownloadPdf: () => void;
   isDownloadingPdf?: boolean;
   onOpenImport?: () => void;
@@ -37,32 +37,45 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             </div>
           </div>
 
-          {/* Center 2 Main Tabs: CV Builder & Job Archive */}
+          {/* Center 3 Main Tabs: CV Builder, Career Track Vault & Job Archive */}
           <div className="flex items-center p-1 bg-zinc-900 border border-zinc-800 rounded-xl shadow-inner">
             <button
               type="button"
               onClick={() => setActiveTab('builder')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg transition ${
                 activeTab === 'builder'
                   ? 'bg-zinc-800 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <FileText className={`h-4 w-4 ${activeTab === 'builder' ? 'text-indigo-400' : 'text-zinc-400'}`} />
-              CV Builder
+              <span>CV Builder</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('career')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg transition ${
+                activeTab === 'career'
+                  ? 'bg-zinc-800 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Database className={`h-4 w-4 ${activeTab === 'career' ? 'text-purple-400' : 'text-zinc-400'}`} />
+              <span>Career Vault</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('archive')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg transition ${
                 activeTab === 'archive'
                   ? 'bg-zinc-800 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Briefcase className={`h-4 w-4 ${activeTab === 'archive' ? 'text-emerald-400' : 'text-zinc-400'}`} />
-              Job Archive
+              <span>Job Archive</span>
             </button>
           </div>
 

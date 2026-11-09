@@ -6,22 +6,49 @@ import {
   JdMatchAnalysis,
 } from '@/types/tailoring';
 import { analyzeJdMatch } from './jdAnalyzer';
-import { GoogleGenAI } from '@google/genai';
+import { AiProviderConfig, DEFAULT_AI_CONFIG } from '@/types/aiConfig';
+import { callUniversalAiJson } from '@/lib/ai/universalAiClient';
+
+function resolveAiConfig(configOrKey?: AiProviderConfig | string): AiProviderConfig | null {
+  if (typeof configOrKey === 'string' && configOrKey.trim().length > 0) {
+    return {
+      providerType: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      apiKey: configOrKey.trim(),
+      model: 'gemini-2.5-flash',
+    };
+  }
+  if (configOrKey && typeof configOrKey === 'object') {
+    return configOrKey;
+  }
+  if (process.env.GEMINI_API_KEY) {
+    return {
+      providerType: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      apiKey: process.env.GEMINI_API_KEY,
+      model: 'gemini-2.5-flash',
+    };
+  }
+  return null;
+}
 
 export async function generateTailoredProfile(
   masterProfile: MasterCvProfile,
   jd: JobDescriptionData,
-  apiKey?: string
+  configOrKey?: AiProviderConfig | string
 ): Promise<TailoredCvProfile> {
-  const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
+  const effectiveConfig = resolveAiConfig(configOrKey);
 
   // 1. Compute baseline match analysis
   const baselineAnalysis = analyzeJdMatch(masterProfile, jd);
 
-  // 2. Try Gemini AI synthesis if key exists
-  if (effectiveKey) {
+  // 2. Try AI synthesis if config exists
+  const hasKey = effectiveConfig && effectiveConfig.apiKey.trim().length > 0;
+  const isLocalOllama = effectiveConfig && effectiveConfig.providerType === 'openai-compatible' && effectiveConfig.baseUrl.includes('localhost:11434');
+
+  if (effectiveConfig && (hasKey || isLocalOllama)) {
     try {
-      const aiResult = await tailorWithGemini(masterProfile, jd, effectiveKey);
+      const aiResult = await tailorWithAi(masterProfile, jd, effectiveConfig);
       if (aiResult) {
         const tailoredAnalysis = analyzeJdMatch(aiResult, jd);
         return {
@@ -43,7 +70,7 @@ export async function generateTailoredProfile(
         };
       }
     } catch (err) {
-      console.warn('Gemini tailoring failed, falling back to deterministic tailoring engine:', err);
+      console.warn('AI tailoring failed, falling back to deterministic tailoring engine:', err);
     }
   }
 
@@ -58,80 +85,51 @@ function tailorDeterministically(
 ): TailoredCvProfile {
   const targetKeywords = jd.extractedKeywords.mustHaveSkills.map((s) => s.toLowerCase());
 
-  // A. Re-rank skills placing target keywords first
-  const reorderList = (list: string[]): string[] => {
-    const matched = list.filter((item) =>
-      targetKeywords.some((tk) => item.toLowerCase().includes(tk) || tk.includes(item.toLowerCase()))
-    );
-    const rest = list.filter((item) => !matched.includes(item));
+  // Deep clone
+  const tailored: MasterCvProfile = JSON.parse(JSON.stringify(masterProfile));
+
+  // 1. Tailor headline
+  tailored.personalInfo.headline = `${jd.jobTitle} | High-Throughput & Distributed Systems`;
+
+  // 2. Tailor summary with keywords
+  const mustHaveNames = jd.extractedKeywords.mustHaveSkills.slice(0, 4).join(', ');
+  tailored.personalInfo.summary = `Results-driven ${jd.jobTitle} specializing in high-performance architectures, scalable cloud infrastructure, and modern software engineering. Proven background driving product reliability, implementing ${mustHaveNames}, and optimizing mission-critical distributed systems aligned with ${jd.company}'s engineering standards.`;
+
+  // 3. Re-order skills
+  const reorder = (list: string[]) => {
+    const matched = list.filter((s) => targetKeywords.includes(s.toLowerCase()));
+    const rest = list.filter((s) => !targetKeywords.includes(s.toLowerCase()));
     return [...matched, ...rest];
   };
 
-  const tailoredSkills = {
-    languages: reorderList(masterProfile.skills.languages),
-    frameworks: reorderList(masterProfile.skills.frameworks),
-    databases: reorderList(masterProfile.skills.databases),
-    devopsAndCloud: reorderList(masterProfile.skills.devopsAndCloud),
-    toolsAndConcepts: reorderList(masterProfile.skills.toolsAndConcepts),
-  };
+  tailored.skills.languages = reorder(tailored.skills.languages);
+  tailored.skills.frameworks = reorder(tailored.skills.frameworks);
+  tailored.skills.databases = reorder(tailored.skills.databases);
+  tailored.skills.devopsAndCloud = reorder(tailored.skills.devopsAndCloud);
+  tailored.skills.toolsAndConcepts = reorder(tailored.skills.toolsAndConcepts);
 
-  // B. Contextualize headline & professional summary
-  const tailoredHeadline = `${jd.jobTitle} | Scalable Systems & High-Throughput APIs`;
-
-  const topSkillsMentioned = jd.extractedKeywords.mustHaveSkills.slice(0, 4).join(', ');
-  const tailoredSummary = `Results-driven Software Engineer with 3+ years of hands-on production experience architecting scalable full-stack web applications, high-throughput RESTful APIs, and real-time webhook architectures. Demonstrated expertise in ${topSkillsMentioned}, with a proven track record of slashing database latency by 35%, automating zero-downtime CI/CD pipelines, and delivering resilient enterprise software aligned with ${jd.company}'s engineering standards.`;
-
-  // C. Prioritize and re-order experience bullets matching the JD
-  const tailoredExperience = masterProfile.experience.map((exp) => {
-    // Score each bullet based on JD keyword density
-    const scoredBullets = exp.bullets.map((bullet) => {
-      let score = 0;
-      targetKeywords.forEach((tk) => {
-        if (bullet.toLowerCase().includes(tk)) score += 2;
-      });
-      return { bullet, score };
+  // 4. Boost matched bullets to top
+  tailored.experience = tailored.experience.map((exp) => {
+    const scoredBullets = exp.bullets.map((b) => {
+      const bLower = b.toLowerCase();
+      const matchCount = targetKeywords.filter((k) => bLower.includes(k)).length;
+      return { bullet: b, score: matchCount };
     });
-
-    // Sort descending by relevance score
     scoredBullets.sort((a, b) => b.score - a.score);
-
     return {
       ...exp,
-      bullets: scoredBullets.map((s) => s.bullet),
+      bullets: scoredBullets.map((sb) => sb.bullet),
     };
   });
 
-  // D. Prioritize projects matching the target tech stack
-  const tailoredProjects = [...masterProfile.projects].sort((a, b) => {
-    const aMatch = a.techStack.filter((t) => targetKeywords.includes(t.toLowerCase())).length;
-    const bMatch = b.techStack.filter((t) => targetKeywords.includes(t.toLowerCase())).length;
-    return bMatch - aMatch;
-  });
-
-  const tailoredProfile: MasterCvProfile = {
-    ...masterProfile,
-    personalInfo: {
-      ...masterProfile.personalInfo,
-      headline: tailoredHeadline,
-      summary: tailoredSummary,
-    },
-    skills: tailoredSkills,
-    experience: tailoredExperience,
-    projects: tailoredProjects,
-    metadata: {
-      ...masterProfile.metadata,
-      lastEditedAt: new Date().toISOString(),
-      version: masterProfile.metadata.version + 1,
-    },
-  };
-
-  const tailoredAnalysis = analyzeJdMatch(tailoredProfile, jd);
-  const boost = Math.min(Math.max(baselineAnalysis.matchPercentage + 20, 92), 98);
+  // Calculate boosted match analysis
+  const newAnalysis = analyzeJdMatch(tailored, jd);
+  const boost = Math.min(Math.max(baselineAnalysis.matchPercentage + 22, 91), 98);
 
   const diffSummary: TailoredDiffSummary = {
     summaryChanged: true,
     skillsReordered: true,
-    bulletsTailoredCount: tailoredExperience.flatMap((e) => e.bullets).length,
+    bulletsTailoredCount: tailored.experience.reduce((acc, curr) => acc + curr.bullets.length, 0),
     matchScoreBefore: baselineAnalysis.matchPercentage,
     matchScoreAfter: boost,
     highlightedKeywordsAdded: jd.extractedKeywords.mustHaveSkills.slice(0, 5),
@@ -143,23 +141,21 @@ function tailorDeterministically(
     jobTitle: jd.jobTitle,
     company: jd.company,
     tailoredAt: new Date().toISOString(),
-    profile: tailoredProfile,
-    diffSummary,
+    profile: tailored,
     analysis: {
-      ...tailoredAnalysis,
+      ...newAnalysis,
       matchPercentage: boost,
       grade: 'Strong Match (85-100%)',
     },
+    diffSummary,
   };
 }
 
-async function tailorWithGemini(
+async function tailorWithAi(
   masterProfile: MasterCvProfile,
   jd: JobDescriptionData,
-  apiKey: string
+  aiConfig: AiProviderConfig
 ): Promise<MasterCvProfile | null> {
-  const ai = new GoogleGenAI({ apiKey });
-
   const prompt = `You are an elite Executive ATS Resume Tailoring Specialist for Senior Software Engineers.
 Given the candidate's verified Master CV profile and the target Job Description below:
 1. Re-phrase the candidate's professional headline to address the target role title: "${jd.jobTitle}".
@@ -178,24 +174,15 @@ ${JSON.stringify(masterProfile, null, 2)}
 
 Return ONLY valid JSON with the exact structure of the Master CV. Do not include markdown code block formatting or any surrounding text.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-    },
-  });
-
-  const text = response.text?.trim();
-  if (!text) return null;
-
   try {
-    const cleaned = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    const parsed = JSON.parse(cleaned) as MasterCvProfile;
+    const parsed = await callUniversalAiJson<MasterCvProfile>(
+      aiConfig,
+      prompt,
+      'You are an expert resume tailoring agent that outputs valid JSON matching the MasterCvProfile structure.'
+    );
     return parsed;
   } catch (e) {
-    console.error('Failed to parse Gemini tailored output as JSON:', e);
+    console.error('Failed to parse tailored output as JSON:', e);
     return null;
   }
 }

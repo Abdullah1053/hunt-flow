@@ -22,11 +22,12 @@ export async function POST(req: NextRequest) {
         : SAMPLE_JOB_POSTINGS[0];
 
     const apiKey: string | undefined = body?.apiKey || undefined;
+    const aiConfig = body?.aiConfig;
 
     const tailoredCv = await generateTailoredProfile(
       masterProfile,
       jobDescription,
-      apiKey
+      aiConfig || apiKey
     );
 
     return NextResponse.json({

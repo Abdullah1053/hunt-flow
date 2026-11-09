@@ -1,7 +1,8 @@
-import { GoogleGenAI } from '@google/genai';
 import { MasterCvSchema } from '@/lib/schemas/masterCvSchema';
 import { MasterCvProfile } from '@/types/masterCv';
 import { RawStagingPayload } from '@/types/ingestion';
+import { AiProviderConfig, DEFAULT_AI_CONFIG } from '@/types/aiConfig';
+import { callUniversalAiJson, callUniversalAiText } from '@/lib/ai/universalAiClient';
 
 const SYSTEM_INSTRUCTION = `
 You are the HuntFlow AI Career Synthesis Engine, an elite FAANG/Fortune 500 resume architect and ATS optimization expert.
@@ -32,17 +33,29 @@ Your job is to read unstructured candidate data (resumes, GitHub repositories, R
    Return ONLY a clean, valid JSON object matching the requested schema. No markdown code blocks, no introductory conversational text.
 `;
 
-export async function synthesizeMasterProfileWithGemini(
-  stagingPayload: RawStagingPayload,
-  userApiKey?: string
-): Promise<MasterCvProfile> {
-  const apiKey = userApiKey || process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured. Please supply an API key.');
+function resolveAiConfig(configOrKey?: AiProviderConfig | string): AiProviderConfig {
+  if (typeof configOrKey === 'string') {
+    return {
+      providerType: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      apiKey: configOrKey,
+      model: 'gemini-2.5-flash',
+    };
   }
+  if (configOrKey && typeof configOrKey === 'object') {
+    return configOrKey;
+  }
+  return {
+    ...DEFAULT_AI_CONFIG,
+    apiKey: process.env.GEMINI_API_KEY || '',
+  };
+}
 
-  const ai = new GoogleGenAI({ apiKey });
+export async function synthesizeMasterProfileWithAi(
+  stagingPayload: RawStagingPayload,
+  configOrKey?: AiProviderConfig | string
+): Promise<MasterCvProfile> {
+  const aiConfig = resolveAiConfig(configOrKey);
 
   const prompt = `
 Please ingest the following candidate staging corpus and synthesize the standardized Master CV profile:
@@ -62,22 +75,11 @@ Generate the Master CV JSON structure with personalInfo, skills, experience, pro
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const text = response.text?.trim() || '';
-    if (!text) {
-      throw new Error('Gemini API returned an empty response.');
-    }
-
-    // Parse JSON
-    const parsedJson = JSON.parse(text);
+    const parsedJson = await callUniversalAiJson<any>(
+      aiConfig,
+      prompt,
+      SYSTEM_INSTRUCTION
+    );
 
     // Validate and fill defaults using Zod schema
     const validated = MasterCvSchema.parse({
@@ -86,7 +88,7 @@ Generate the Master CV JSON structure with personalInfo, skills, experience, pro
         generatedAt: new Date().toISOString(),
         lastEditedAt: new Date().toISOString(),
         version: 1,
-        synthesizedBy: 'gemini',
+        synthesizedBy: aiConfig.providerType === 'gemini' ? 'gemini' : 'openai-compatible',
         xyzBulletsCount:
           (parsedJson.experience?.reduce(
             (acc: number, item: any) => acc + (item.bullets?.length || 0),
@@ -101,23 +103,20 @@ Generate the Master CV JSON structure with personalInfo, skills, experience, pro
 
     return validated as MasterCvProfile;
   } catch (error) {
-    console.error('Gemini synthesis error:', error);
+    console.error('AI synthesis error:', error);
     throw error;
   }
 }
 
-export async function optimizeBulletWithGemini(
+// Backward-compatible alias
+export const synthesizeMasterProfileWithGemini = synthesizeMasterProfileWithAi;
+
+export async function optimizeBulletWithAi(
   rawBullet: string,
   context?: string,
-  userApiKey?: string
+  configOrKey?: AiProviderConfig | string
 ): Promise<string> {
-  const apiKey = userApiKey || process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured.');
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const aiConfig = resolveAiConfig(configOrKey);
 
   const prompt = `
 Rewrite the following resume bullet point to strictly follow Google's XYZ Formula:
@@ -133,10 +132,14 @@ Context: ${context || 'Software Engineering / Full-Stack Development'}
 Original Bullet: "${rawBullet}"
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-  });
+  const reply = await callUniversalAiText(
+    aiConfig,
+    prompt,
+    'You are an expert ATS resume optimizer strictly generating Google XYZ bullets.'
+  );
 
-  return (response.text || rawBullet).trim().replace(/^["']|["']$/g, '');
+  return reply.replace(/^["']|["']$/g, '');
 }
+
+// Backward-compatible alias
+export const optimizeBulletWithGemini = optimizeBulletWithAi;

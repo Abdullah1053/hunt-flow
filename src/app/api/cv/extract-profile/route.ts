@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { synthesizeMasterProfileWithGemini } from '@/lib/geminiSynthesizer';
+import { synthesizeMasterProfileWithAi } from '@/lib/geminiSynthesizer';
 import { synthesizeDeterministicProfile } from '@/lib/deterministicSynthesizer';
 import { RawStagingPayload } from '@/types/ingestion';
+import { AiProviderConfig } from '@/types/aiConfig';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { stagingPayload, apiKey } = body as {
+    const { stagingPayload, aiConfig, apiKey } = body as {
       stagingPayload: RawStagingPayload;
+      aiConfig?: AiProviderConfig;
       apiKey?: string;
     };
 
@@ -18,30 +20,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+    // Resolve AI configuration
+    const effectiveConfig: AiProviderConfig | undefined =
+      aiConfig ||
+      (apiKey
+        ? {
+            providerType: 'gemini',
+            baseUrl: 'https://generativelanguage.googleapis.com',
+            apiKey,
+            model: 'gemini-2.5-flash',
+          }
+        : process.env.GEMINI_API_KEY
+        ? {
+            providerType: 'gemini',
+            baseUrl: 'https://generativelanguage.googleapis.com',
+            apiKey: process.env.GEMINI_API_KEY,
+            model: 'gemini-2.5-flash',
+          }
+        : undefined);
 
-    if (effectiveApiKey && effectiveApiKey.trim().length > 0) {
+    const hasKey = effectiveConfig && effectiveConfig.apiKey.trim().length > 0;
+    const isLocalOllama = effectiveConfig && effectiveConfig.providerType === 'openai-compatible' && effectiveConfig.baseUrl.includes('localhost:11434');
+
+    if (hasKey || isLocalOllama) {
       try {
-        const geminiProfile = await synthesizeMasterProfileWithGemini(
+        const aiProfile = await synthesizeMasterProfileWithAi(
           stagingPayload,
-          effectiveApiKey.trim()
+          effectiveConfig
         );
         return NextResponse.json({
-          profile: geminiProfile,
-          synthesizedBy: 'gemini',
-          modelUsed: 'gemini-2.5-flash',
-          message: 'Profile synthesized successfully via Gemini AI Engine with XYZ Formula.',
+          profile: aiProfile,
+          synthesizedBy: effectiveConfig.providerType,
+          modelUsed: effectiveConfig.model,
+          message: `Profile synthesized successfully via ${effectiveConfig.model} with XYZ Formula.`,
         });
-      } catch (geminiError) {
-        console.warn('Gemini API call failed, falling back to deterministic synthesizer:', geminiError);
+      } catch (aiError) {
+        console.warn('AI call failed, falling back to deterministic synthesizer:', aiError);
         // Fallback to deterministic synthesis so the candidate workflow is never blocked
         const fallbackProfile = synthesizeDeterministicProfile(stagingPayload);
         return NextResponse.json({
           profile: fallbackProfile,
           synthesizedBy: 'deterministic',
-          fallbackReason: geminiError instanceof Error ? geminiError.message : 'Gemini call failed',
+          fallbackReason: aiError instanceof Error ? aiError.message : 'AI call failed',
           message:
-            'Profile synthesized via local deterministic engine (Gemini API returned an error or quota limit).',
+            'Profile synthesized via local deterministic engine (AI provider returned an error or quota limit).',
         });
       }
     } else {
@@ -51,7 +73,7 @@ export async function POST(req: NextRequest) {
         profile: deterministicProfile,
         synthesizedBy: 'deterministic',
         message:
-          'Profile synthesized via local deterministic engine. Add a Gemini API key in settings for live LLM extraction.',
+          'Profile synthesized via local deterministic engine. Configure an AI provider in settings for live LLM extraction.',
       });
     }
   } catch (error) {

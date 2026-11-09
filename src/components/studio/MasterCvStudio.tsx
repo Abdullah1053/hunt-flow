@@ -14,8 +14,17 @@ import {
   Redo2,
   Database,
   Check,
+  Bot,
+  Globe,
+  Cpu,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Sparkles,
 } from 'lucide-react';
 import { MasterCvProfile } from '@/types/masterCv';
+import { AiProviderConfig, AI_PROVIDER_PRESETS, DEFAULT_AI_CONFIG } from '@/types/aiConfig';
 import { PersonalInfoEditor } from './PersonalInfoEditor';
 import { SkillsEditor } from './SkillsEditor';
 import { ExperienceEditor } from './ExperienceEditor';
@@ -28,8 +37,10 @@ interface MasterCvStudioProps {
   onUpdateProfile: (updated: MasterCvProfile, isDiscrete?: boolean) => void;
   onReSynthesize: () => void;
   isSynthesizing: boolean;
-  apiKey: string;
-  onUpdateApiKey: (key: string) => void;
+  apiKey?: string;
+  onUpdateApiKey?: (key: string) => void;
+  aiConfig?: AiProviderConfig;
+  onUpdateAiConfig?: (config: AiProviderConfig) => void;
   onProceedToStage3?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
@@ -43,8 +54,10 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   onUpdateProfile,
   onReSynthesize,
   isSynthesizing,
-  apiKey,
+  apiKey = '',
   onUpdateApiKey,
+  aiConfig = DEFAULT_AI_CONFIG,
+  onUpdateAiConfig,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -56,9 +69,24 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   >('personal');
   const [isSplitView, setIsSplitView] = useState(true);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState(apiKey);
+  const [tempConfig, setTempConfig] = useState<AiProviderConfig>(aiConfig);
+  const [activePresetId, setActivePresetId] = useState<string>('gemini');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync tempConfig with aiConfig whenever modal opens or aiConfig changes
+  useEffect(() => {
+    if (aiConfig) {
+      setTempConfig(aiConfig);
+      const matched = AI_PROVIDER_PRESETS.find(
+        (p) => p.providerType === aiConfig.providerType && (p.baseUrl === aiConfig.baseUrl || p.defaultModel === aiConfig.model)
+      );
+      setActivePresetId(matched ? matched.id : 'custom');
+    }
+  }, [aiConfig, showSettingsModal]);
 
   // Keyboard shortcuts for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)
   useEffect(() => {
@@ -115,7 +143,12 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
       const res = await fetch('/api/cv/optimize-bullet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bullet, context, apiKey }),
+        body: JSON.stringify({
+          bullet,
+          context,
+          aiConfig,
+          apiKey: aiConfig?.apiKey || apiKey,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.optimizedBullet) {
@@ -125,6 +158,71 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
       console.error('Bullet optimization error:', err);
     }
     return bullet;
+  };
+
+  const handleSelectPreset = (preset: (typeof AI_PROVIDER_PRESETS)[number]) => {
+    setActivePresetId(preset.id);
+    setTempConfig((prev) => ({
+      ...prev,
+      providerType: preset.providerType,
+      baseUrl: preset.baseUrl,
+      model: preset.defaultModel,
+    }));
+    setTestResult(null);
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/ai/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiConfig: tempConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestResult({
+          success: true,
+          message: `${data.model}: ${data.message}`,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error || 'Connection failed',
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || 'Connection test failed',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSaveAiConfig = async () => {
+    if (onUpdateAiConfig) {
+      onUpdateAiConfig(tempConfig);
+    }
+    if (onUpdateApiKey) {
+      onUpdateApiKey(tempConfig.apiKey);
+    }
+
+    try {
+      localStorage.setItem('huntflow_ai_config', JSON.stringify(tempConfig));
+      localStorage.setItem('huntflow_gemini_api_key', tempConfig.apiKey);
+      await fetch('/api/db/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'ai_config', value: tempConfig }),
+      });
+    } catch (e) {
+      console.warn('Failed to save AI config to SQLite:', e);
+    }
+
+    setShowSettingsModal(false);
   };
 
   const handleDownloadJson = () => {
@@ -311,11 +409,11 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
           <button
             type="button"
             onClick={() => {
-              setTempApiKey(apiKey);
+              setTempConfig(aiConfig || DEFAULT_AI_CONFIG);
               setShowSettingsModal(true);
             }}
             className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-            title="Gemini API Key Settings"
+            title="Universal AI Provider Settings (OpenAI, Gemini, DeepSeek, Groq, Ollama)"
           >
             <Settings className="h-4 w-4" />
           </button>
@@ -468,51 +566,245 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
         </div>
       )}
 
-      {/* API Key Settings Modal */}
+      {/* Universal AI Provider Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <div className="flex items-center gap-2 text-white font-semibold text-sm">
-                <Key className="h-4 w-4 text-indigo-400" />
-                Gemini API Key Configuration
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Universal AI Configuration</h3>
+                  <p className="text-xs text-zinc-400">
+                    Connect OpenAI, DeepSeek, Groq, OpenRouter, Ollama, or Google Gemini
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                className="text-zinc-400 hover:text-white"
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-xs text-zinc-400">
-              Enter your Google Gemini API key to enable AI bullet rewriting and schema extraction.
-            </p>
-            <input
-              type="password"
-              value={tempApiKey}
-              onChange={(e) => setTempApiKey(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
-            />
-            <div className="flex justify-end gap-2 pt-2">
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Presets Quick-Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-2">
+                  1-Click Provider Presets
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {AI_PROVIDER_PRESETS.map((preset) => {
+                    const isSelected = activePresetId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-1 ${
+                          isSelected
+                            ? 'bg-indigo-600/15 border-indigo-500 text-white shadow-sm'
+                            : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold">{preset.name}</span>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-indigo-400" />}
+                        </div>
+                        <span className="text-[10px] text-zinc-400 truncate">
+                          {preset.defaultModel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Provider Architecture Type */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-300">
+                  Protocol Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempConfig((prev) => ({ ...prev, providerType: 'openai-compatible' }));
+                      setTestResult(null);
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-medium border text-center transition ${
+                      tempConfig.providerType === 'openai-compatible'
+                        ? 'bg-zinc-800 text-white border-zinc-600 shadow-sm'
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                    }`}
+                  >
+                    OpenAI-Compatible / Proxy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempConfig((prev) => ({
+                        ...prev,
+                        providerType: 'gemini',
+                        baseUrl: 'https://generativelanguage.googleapis.com',
+                        model: prev.model || 'gemini-2.5-flash',
+                      }));
+                      setTestResult(null);
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-medium border text-center transition ${
+                      tempConfig.providerType === 'gemini'
+                        ? 'bg-zinc-800 text-white border-zinc-600 shadow-sm'
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                    }`}
+                  >
+                    Google Gemini Native
+                  </button>
+                </div>
+              </div>
+
+              {/* Base URL */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span>Base URL / Endpoint</span>
+                  <span className="text-[10px] text-zinc-500 font-normal">
+                    {tempConfig.providerType === 'gemini' ? 'Fixed Google API' : 'Appends /v1/chat/completions'}
+                  </span>
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={tempConfig.baseUrl}
+                    onChange={(e) => {
+                      setTempConfig((prev) => ({ ...prev, baseUrl: e.target.value }));
+                      setActivePresetId('custom');
+                      setTestResult(null);
+                    }}
+                    disabled={tempConfig.providerType === 'gemini'}
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 font-mono disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {/* Model Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-300">
+                  Model Name / ID
+                </label>
+                <div className="relative">
+                  <Cpu className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={tempConfig.model}
+                    onChange={(e) => {
+                      setTempConfig((prev) => ({ ...prev, model: e.target.value }));
+                      setTestResult(null);
+                    }}
+                    placeholder="e.g. gpt-4o-mini, deepseek-chat, gemini-2.5-flash, llama-3.3-70b-versatile"
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* API Token / Key */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span>API Key / Bearer Token</span>
+                  <span className="text-[10px] text-zinc-500 font-normal">
+                    {tempConfig.baseUrl?.includes('localhost') ? 'Optional for local Ollama' : 'Stored securely in local SQLite'}
+                  </span>
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={tempConfig.apiKey}
+                    onChange={(e) => {
+                      setTempConfig((prev) => ({ ...prev, apiKey: e.target.value }));
+                      setTestResult(null);
+                    }}
+                    placeholder={
+                      tempConfig.providerType === 'gemini'
+                        ? 'AIzaSy...'
+                        : tempConfig.baseUrl?.includes('localhost')
+                        ? 'ollama (optional)'
+                        : 'sk-...'
+                    }
+                    className="w-full pl-9 pr-10 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
+                  >
+                    {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Test Result Feedback */}
+              {testResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in duration-150 ${
+                    testResult.success
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                  }`}
+                >
+                  {testResult.success ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+                  )}
+                  <span className="break-all">{testResult.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white"
+                onClick={handleTestConnection}
+                disabled={isTesting}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition disabled:opacity-50"
               >
-                Cancel
+                {isTesting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    Test Connection
+                  </>
+                )}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateApiKey(tempApiKey.trim());
-                  setShowSettingsModal(false);
-                }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                Save Key
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAiConfig}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
+                >
+                  Save Configuration
+                </button>
+              </div>
             </div>
           </div>
         </div>

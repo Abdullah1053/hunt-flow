@@ -10,6 +10,7 @@ import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
 import { synthesizePayload } from '@/lib/corpusAggregator';
 import { synthesizeDeterministicProfile, getDefaultMasterProfile } from '@/lib/deterministicSynthesizer';
 import { useHistoryState } from '@/lib/hooks/useHistoryState';
+import { AiProviderConfig, DEFAULT_AI_CONFIG } from '@/types/aiConfig';
 import {
   GitHubUserProfile,
   GitHubRepoItem,
@@ -31,6 +32,7 @@ export default function HomePage() {
   const currentProfile = history.state;
 
   const [apiKey, setApiKey] = useState<string>('');
+  const [aiConfig, setAiConfig] = useState<AiProviderConfig>(DEFAULT_AI_CONFIG);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'idle'>('saved');
   const isInitialLoadRef = useRef(true);
@@ -54,12 +56,46 @@ export default function HomePage() {
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
 
-  // Restore API key and Master Profile from SQLite (with localStorage fallback)
+  // Restore AI Config, API key, and Master Profile from SQLite (with localStorage fallback)
   useEffect(() => {
-    try {
-      const savedKey = localStorage.getItem('huntflow_gemini_api_key');
-      if (savedKey) setApiKey(savedKey);
-    } catch {}
+    // 1. Restore AI Configuration
+    async function loadAiConfig() {
+      try {
+        const res = await fetch('/api/db/settings?key=ai_config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.value?.providerType) {
+            setAiConfig(data.value);
+            setApiKey(data.value.apiKey || '');
+            try {
+              localStorage.setItem('huntflow_ai_config', JSON.stringify(data.value));
+            } catch {}
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load AI config from SQLite:', e);
+      }
+
+      try {
+        const localAiConfig = localStorage.getItem('huntflow_ai_config');
+        if (localAiConfig) {
+          const parsed = JSON.parse(localAiConfig);
+          if (parsed?.providerType) {
+            setAiConfig(parsed);
+            setApiKey(parsed.apiKey || '');
+            return;
+          }
+        }
+        const savedKey = localStorage.getItem('huntflow_gemini_api_key');
+        if (savedKey) {
+          setApiKey(savedKey);
+          setAiConfig((prev) => ({ ...prev, apiKey: savedKey }));
+        }
+      } catch {}
+    }
+
+    loadAiConfig();
 
     async function loadMasterProfile() {
       try {
@@ -138,8 +174,18 @@ export default function HomePage() {
 
   const handleUpdateApiKey = (newKey: string) => {
     setApiKey(newKey);
+    setAiConfig((prev) => ({ ...prev, apiKey: newKey }));
     try {
       localStorage.setItem('huntflow_gemini_api_key', newKey);
+    } catch {}
+  };
+
+  const handleUpdateAiConfig = (newConfig: AiProviderConfig) => {
+    setAiConfig(newConfig);
+    setApiKey(newConfig.apiKey || '');
+    try {
+      localStorage.setItem('huntflow_ai_config', JSON.stringify(newConfig));
+      localStorage.setItem('huntflow_gemini_api_key', newConfig.apiKey || '');
     } catch {}
   };
 
@@ -168,7 +214,8 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           stagingPayload,
-          apiKey,
+          aiConfig,
+          apiKey: aiConfig?.apiKey || apiKey,
         }),
       });
 
@@ -188,7 +235,7 @@ export default function HomePage() {
       setIsSynthesizing(false);
       setShowImportDrawer(false);
     }
-  }, [stagingPayload, apiKey]);
+  }, [stagingPayload, aiConfig, apiKey, history]);
 
   // GitHub handlers
   const handleFetchGithubUser = async (username: string) => {
@@ -375,6 +422,8 @@ export default function HomePage() {
             isSynthesizing={isSynthesizing}
             apiKey={apiKey}
             onUpdateApiKey={handleUpdateApiKey}
+            aiConfig={aiConfig}
+            onUpdateAiConfig={handleUpdateAiConfig}
             canUndo={history.canUndo}
             canRedo={history.canRedo}
             onUndo={history.undo}

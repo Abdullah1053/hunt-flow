@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
       profile = getFallbackProfile();
     }
 
-    const buffer = await generateAtsPdf(profile);
+    const fontFamily = (body?.fontFamily || req.nextUrl.searchParams.get('fontFamily') || 'times') as 'times' | 'helvetica';
+    const buffer = await generateAtsPdf(profile, { fontFamily });
 
     const safeName = (profile.personalInfo.fullName || 'Candidate')
       .replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -47,10 +48,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const profile = getFallbackProfile();
-    const buffer = await generateAtsPdf(profile);
+    const fontFamily = (req.nextUrl.searchParams.get('fontFamily') || 'times') as 'times' | 'helvetica';
+    const buffer = await generateAtsPdf(profile, { fontFamily });
 
     const safeName = (profile.personalInfo.fullName || 'Candidate')
       .replace(/[^a-zA-Z0-9_-]/g, '_');

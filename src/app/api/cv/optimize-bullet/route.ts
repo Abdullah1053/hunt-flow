@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { optimizeBulletWithGemini } from '@/lib/geminiSynthesizer';
+import { optimizeBulletWithAi } from '@/lib/geminiSynthesizer';
+import { AiProviderConfig } from '@/types/aiConfig';
 
 export async function POST(req: NextRequest) {
   try {
-    const { bullet, context, apiKey } = await req.json();
+    const { bullet, context, aiConfig, apiKey } = await req.json();
 
     if (!bullet || typeof bullet !== 'string') {
       return NextResponse.json(
@@ -12,21 +13,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+    const effectiveConfig: AiProviderConfig | undefined =
+      aiConfig ||
+      (apiKey
+        ? {
+            providerType: 'gemini',
+            baseUrl: 'https://generativelanguage.googleapis.com',
+            apiKey,
+            model: 'gemini-2.5-flash',
+          }
+        : process.env.GEMINI_API_KEY
+        ? {
+            providerType: 'gemini',
+            baseUrl: 'https://generativelanguage.googleapis.com',
+            apiKey: process.env.GEMINI_API_KEY,
+            model: 'gemini-2.5-flash',
+          }
+        : undefined);
 
-    if (effectiveApiKey && effectiveApiKey.trim().length > 0) {
+    const hasKey = effectiveConfig && effectiveConfig.apiKey.trim().length > 0;
+    const isLocalOllama = effectiveConfig && effectiveConfig.providerType === 'openai-compatible' && effectiveConfig.baseUrl.includes('localhost:11434');
+
+    if (hasKey || isLocalOllama) {
       try {
-        const optimized = await optimizeBulletWithGemini(
+        const optimized = await optimizeBulletWithAi(
           bullet,
           context,
-          effectiveApiKey.trim()
+          effectiveConfig
         );
         return NextResponse.json({
           optimizedBullet: optimized,
-          optimizedBy: 'gemini',
+          optimizedBy: effectiveConfig.model,
         });
-      } catch (geminiError) {
-        console.warn('Gemini single bullet optimizer failed:', geminiError);
+      } catch (aiError) {
+        console.warn('AI single bullet optimizer failed, using rule-based fallback:', aiError);
       }
     }
 

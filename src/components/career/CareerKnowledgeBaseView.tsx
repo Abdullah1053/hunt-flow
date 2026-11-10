@@ -12,12 +12,22 @@ import {
   Tag,
   Layers,
   Wand2,
+  Download,
+  Upload,
+  Copy,
+  FileText,
 } from 'lucide-react';
 import {
   CareerBullet,
   CareerBulletCategory,
   CAREER_BULLET_CATEGORY_CONFIG,
 } from '@/types/careerTrack';
+import {
+  formatCareerBulletsAsTxt,
+  formatCareerBulletsAsMd,
+  parseCareerTextOrMarkdown,
+  parseCareerJson,
+} from '@/lib/careerBasePortability';
 
 interface CareerKnowledgeBaseViewProps {
   onNavigateToTailor?: () => void;
@@ -58,7 +68,10 @@ export const CareerKnowledgeBaseView: React.FC<CareerKnowledgeBaseViewProps> = (
   // Inline context editing
   const [editingContextId, setEditingContextId] = useState<string | null>(null);
   const [editingContextValue, setEditingContextValue] = useState('');
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const bulletInputRef = useRef<HTMLTextAreaElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const flashStatus = (msg: string) => {
     setStatusMessage(msg);
@@ -244,42 +257,227 @@ export const CareerKnowledgeBaseView: React.FC<CareerKnowledgeBaseViewProps> = (
     }
   };
 
+  const triggerDownload = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const getDateSlug = () => new Date().toISOString().split('T')[0];
+
+  const handleExportTxt = () => {
+    const content = formatCareerBulletsAsTxt(bullets);
+    triggerDownload(content, `career_knowledge_base_${getDateSlug()}.txt`, 'text/plain;charset=utf-8');
+  };
+
+  const handleExportMd = () => {
+    const content = formatCareerBulletsAsMd(bullets);
+    triggerDownload(content, `career_knowledge_base_${getDateSlug()}.md`, 'text/markdown;charset=utf-8');
+  };
+
+  const handleExportJson = () => {
+    const content = JSON.stringify(bullets, null, 2);
+    triggerDownload(content, `career_knowledge_base_${getDateSlug()}.json`, 'application/json;charset=utf-8');
+  };
+
+  const handleCopyAllAsText = async () => {
+    try {
+      const content = formatCareerBulletsAsTxt(bullets);
+      await navigator.clipboard.writeText(content);
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2400);
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      alert('Failed to copy to clipboard.');
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+
+    try {
+      const text = await file.text();
+      const lower = file.name.toLowerCase();
+      let parsedItems: Array<Partial<CareerBullet>> = [];
+
+      if (lower.endsWith('.json')) {
+        parsedItems = parseCareerJson(text);
+      } else if (lower.endsWith('.txt') || lower.endsWith('.md')) {
+        parsedItems = parseCareerTextOrMarkdown(text);
+      } else {
+        throw new Error('Unsupported file format. Please upload a .txt, .md, or .json file.');
+      }
+
+      if (parsedItems.length === 0) {
+        throw new Error('No valid bullets found in the uploaded file.');
+      }
+
+      const res = await fetch('/api/db/career-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bullets: parsedItems }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success || !Array.isArray(data.bullets)) {
+        throw new Error(data.error || 'Failed to import bullets into database.');
+      }
+
+      // Merge imported bullets by ID (supports lossless JSON upsert & new TXT/MD bullets)
+      setBullets((prev) => {
+        const importedMap = new Map<string, CareerBullet>(
+          (data.bullets as CareerBullet[]).map((b) => [b.id, b])
+        );
+        const remaining = prev.filter((b) => !importedMap.has(b.id));
+        return [...(data.bullets as CareerBullet[]), ...remaining];
+      });
+
+      flashStatus(`Imported ${data.bullets.length} bullets from ${file.name}`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to import knowledge base file.');
+    } finally {
+      setIsImporting(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-5">
-      {/* Header & Live Active Counter */}
-      <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <Database className="h-5 w-5 text-purple-400" />
-              Career Knowledge Base
-            </h2>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              {activeCount} Active Knowledge Bullets ready for AI CV Generation
-            </span>
+      {/* Hidden Import File Input */}
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept=".txt,.md,.json,text/plain,text/markdown,application/json"
+        onChange={handleImportFile}
+        className="hidden"
+      />
+
+      {/* Header & Live Active Counter + Export/Import Controls */}
+      <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Database className="h-5 w-5 text-purple-400" />
+                Career Knowledge Base
+              </h2>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                {activeCount} Active Knowledge Bullets ready for AI CV Generation
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">
+              Your single source of truth. Only checked bullets are injected into the AI fact pool when tailoring CVs.
+            </p>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Your single source of truth. Only checked bullets are injected into the AI fact pool when tailoring CVs.
-          </p>
+
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {statusMessage && (
+              <span className="px-3 py-1.5 rounded-xl text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+                {statusMessage}
+              </span>
+            )}
+            {onNavigateToTailor && (
+              <button
+                type="button"
+                onClick={onNavigateToTailor}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Tailor CV for New Job
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          {statusMessage && (
-            <span className="px-3 py-1.5 rounded-xl text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-              {statusMessage}
-            </span>
-          )}
-          {onNavigateToTailor && (
+        {/* Portable Export & Import Controls Bar */}
+        <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={onNavigateToTailor}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition"
+              onClick={handleExportTxt}
+              disabled={bullets.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 transition disabled:opacity-40"
+              title="Download clean plain-text file ready for any LLM"
             >
-              <Wand2 className="h-3.5 w-3.5" />
-              Tailor CV for New Job
+              <Download className="h-3.5 w-3.5 text-emerald-400" />
+              Export .TXT
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={handleExportMd}
+              disabled={bullets.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition disabled:opacity-40"
+              title="Download Markdown formatted knowledge base"
+            >
+              <FileText className="h-3.5 w-3.5 text-sky-400" />
+              Export .MD
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportJson}
+              disabled={bullets.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition disabled:opacity-40"
+              title="Download lossless JSON backup"
+            >
+              <Download className="h-3.5 w-3.5 text-amber-400" />
+              Export .JSON
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyAllAsText}
+              disabled={bullets.length === 0}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition disabled:opacity-40 ${
+                copiedAll
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700'
+              }`}
+              title="Copy formatted knowledge base text to clipboard"
+            >
+              {copiedAll ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 text-zinc-400" />
+                  Copy All as Text
+                </>
+              )}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => importFileInputRef.current?.click()}
+            disabled={isImporting}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-950 hover:bg-zinc-800 text-indigo-300 border border-indigo-500/30 transition disabled:opacity-40"
+            title="Import bullets from a .txt, .md, or .json file"
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Upload className="h-3.5 w-3.5 text-indigo-400" />
+                Import .TXT / .JSON
+              </>
+            )}
+          </button>
         </div>
       </div>
 

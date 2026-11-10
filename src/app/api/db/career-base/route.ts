@@ -55,6 +55,11 @@ export async function POST(req: NextRequest) {
     const insertStmt = db.prepare(`
       INSERT INTO career_bullets (id, category, context_label, bullet_text, is_active_for_ai, created_at)
       VALUES (@id, @category, @context_label, @bullet_text, @is_active_for_ai, @created_at)
+      ON CONFLICT(id) DO UPDATE SET
+        category = excluded.category,
+        context_label = excluded.context_label,
+        bullet_text = excluded.bullet_text,
+        is_active_for_ai = excluded.is_active_for_ai
     `);
 
     // Bulk insert support

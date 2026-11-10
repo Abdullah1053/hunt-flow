@@ -79,7 +79,7 @@ export const MasterCvSchema = z.object({
       generatedAt: z.string().default(() => new Date().toISOString()),
       lastEditedAt: z.string().default(() => new Date().toISOString()),
       version: z.number().default(1),
-      synthesizedBy: z.enum(['gemini', 'deterministic']).default('gemini'),
+      synthesizedBy: z.enum(['gemini', 'openai-compatible', 'deterministic']).default('gemini'),
       xyzBulletsCount: z.number().default(0),
     })
     .default({

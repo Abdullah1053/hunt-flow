@@ -1,3 +1,50 @@
+export type CareerBulletCategory =
+  | 'experience'
+  | 'project'
+  | 'skill_tech'
+  | 'education_cert'
+  | 'general';
+
+export interface CareerBullet {
+  id: string;
+  category: CareerBulletCategory;
+  contextLabel?: string;
+  bulletText: string;
+  isActiveForAi: boolean;
+  createdAt: string;
+}
+
+export const CAREER_BULLET_CATEGORY_CONFIG: Record<
+  CareerBulletCategory,
+  { label: string; shortLabel: string; badgeClass: string }
+> = {
+  experience: {
+    label: 'Work Experience',
+    shortLabel: 'Experience',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  },
+  project: {
+    label: 'Project & System',
+    shortLabel: 'Project',
+    badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+  },
+  skill_tech: {
+    label: 'Skills & Tech Stack',
+    shortLabel: 'Skill / Tech',
+    badgeClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+  },
+  education_cert: {
+    label: 'Education & Certs',
+    shortLabel: 'Edu / Cert',
+    badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  },
+  general: {
+    label: 'General Fact',
+    shortLabel: 'General',
+    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  },
+};
+
 export type CareerTrackCategory =
   | 'work_experience'
   | 'project'

@@ -87,7 +87,7 @@ export interface MasterCvProfile {
     generatedAt: string;
     lastEditedAt: string;
     version: number;
-    synthesizedBy: 'gemini' | 'deterministic';
+    synthesizedBy: 'gemini' | 'openai-compatible' | 'deterministic';
     xyzBulletsCount: number;
   };
 }

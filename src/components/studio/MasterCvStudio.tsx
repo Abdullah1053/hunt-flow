@@ -22,6 +22,8 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Briefcase,
+  Wand2,
 } from 'lucide-react';
 import { MasterCvProfile } from '@/types/masterCv';
 import { AiProviderConfig, AI_PROVIDER_PRESETS, DEFAULT_AI_CONFIG } from '@/types/aiConfig';
@@ -31,6 +33,12 @@ import { ExperienceEditor } from './ExperienceEditor';
 import { ProjectsEditor } from './ProjectsEditor';
 import { EducationEditor } from './EducationEditor';
 import { LiveAtsDocumentPreview } from './LiveAtsDocumentPreview';
+
+export interface TailoredJobBannerContext {
+  jobTitle: string;
+  jobDescription: string;
+  tailoredAt?: string;
+}
 
 interface MasterCvStudioProps {
   profile: MasterCvProfile;
@@ -47,6 +55,11 @@ interface MasterCvStudioProps {
   onUndo?: () => void;
   onRedo?: () => void;
   saveStatus?: 'saved' | 'saving' | 'error' | 'idle';
+  tailoredJobContext?: TailoredJobBannerContext | null;
+  onDismissTailorBanner?: () => void;
+  onArchiveTailoredJob?: () => void;
+  onNavigateToTailor?: () => void;
+  openSettingsSignal?: number;
 }
 
 export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
@@ -63,6 +76,11 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   onUndo,
   onRedo,
   saveStatus = 'saved',
+  tailoredJobContext = null,
+  onDismissTailorBanner,
+  onArchiveTailoredJob,
+  onNavigateToTailor,
+  openSettingsSignal = 0,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'personal' | 'skills' | 'experience' | 'projects' | 'education' | 'preview'
@@ -76,6 +94,13 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Open AI settings modal when triggered externally
+  useEffect(() => {
+    if (openSettingsSignal > 0) {
+      setShowSettingsModal(true);
+    }
+  }, [openSettingsSignal]);
 
   // Sync tempConfig with aiConfig whenever modal opens or aiConfig changes
   useEffect(() => {
@@ -276,6 +301,66 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Step D: Tailored Job Context Banner */}
+      {tailoredJobContext && (
+        <div className="no-print p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 via-zinc-900 to-emerald-950/60 border border-indigo-500/40 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shrink-0">
+              <Sparkles className="h-4 w-4 text-amber-300" />
+            </div>
+            <p className="text-xs sm:text-sm font-medium text-zinc-100 leading-relaxed">
+              ✨ Tailored for <strong className="text-white">{tailoredJobContext.jobTitle}</strong> — Review &amp; edit any section below, Download 1-Page PDF, or Archive this Application.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {canUndo && onUndo && (
+              <button
+                type="button"
+                onClick={onUndo}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+                title="Revert AI tailoring changes (Ctrl+Z)"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Revert (Undo)
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-emerald-300 border border-emerald-500/30 transition disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download 1-Page PDF
+            </button>
+
+            {onArchiveTailoredJob && (
+              <button
+                type="button"
+                onClick={onArchiveTailoredJob}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-500/20 transition"
+              >
+                <Briefcase className="h-3.5 w-3.5" />
+                Archive to Job Applications
+              </button>
+            )}
+
+            {onDismissTailorBanner && (
+              <button
+                type="button"
+                onClick={onDismissTailorBanner}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                title="Dismiss banner"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Studio Header Bar */}
       <div className="no-print p-4 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -345,6 +430,18 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
           </div>
 
           {/* Primary High-Contrast Download ATS PDF Button */}
+          {onNavigateToTailor && (
+            <button
+              type="button"
+              onClick={onNavigateToTailor}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition"
+              title="Tailor CV for a new job application"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Tailor for Job
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleDownloadPdf}

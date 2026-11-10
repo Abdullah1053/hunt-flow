@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { HeaderNav } from '@/components/ingestion/HeaderNav';
-import { MasterCvStudio } from '@/components/studio/MasterCvStudio';
+import { MasterCvStudio, TailoredJobBannerContext } from '@/components/studio/MasterCvStudio';
 import { PipelineView } from '@/components/pipeline/PipelineView';
-import { CareerTrackView } from '@/components/career/CareerTrackView';
+import { AddApplicationModal } from '@/components/pipeline/AddApplicationModal';
+import { CareerKnowledgeBaseView } from '@/components/career/CareerKnowledgeBaseView';
+import { NewJobTailorWizard } from '@/components/tailor/NewJobTailorWizard';
 import { GitHubIngestCard } from '@/components/ingestion/GitHubIngestCard';
 import { DocumentIngestCard } from '@/components/ingestion/DocumentIngestCard';
 import { ExternalLinksCard } from '@/components/ingestion/ExternalLinksCard';
@@ -19,11 +21,15 @@ import {
   ExternalLink,
 } from '@/types/ingestion';
 import { MasterCvProfile } from '@/types/masterCv';
+import { JobApplicationRecord } from '@/types/pipeline';
 import { X, Sparkles, UploadCloud } from 'lucide-react';
 
 export default function HomePage() {
-  // Main 3-tab navigation: 'builder' | 'career' | 'archive'
-  const [activeTab, setActiveTab] = useState<'builder' | 'career' | 'archive'>('builder');
+  // Main 4-tab navigation: 'builder' | 'career' | 'tailor' | 'archive'
+  const [activeTab, setActiveTab] = useState<'builder' | 'career' | 'tailor' | 'archive'>('builder');
+  const [tailoredJobContext, setTailoredJobContext] = useState<TailoredJobBannerContext | null>(null);
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [openSettingsSignal, setOpenSettingsSignal] = useState(0);
 
   // Master CV Profile state managed with Undo / Redo history
   const history = useHistoryState<MasterCvProfile>(getDefaultMasterProfile(), {
@@ -398,12 +404,51 @@ export default function HomePage() {
   // Load an application's tailored CV snapshot directly into CV Builder
   const handleLoadCvInStudio = (snapshot: MasterCvProfile) => {
     history.reset(snapshot);
+    setTailoredJobContext(null);
     setActiveTab('builder');
+  };
+
+  // Step D: Receive tailored CV from 4-Step Wizard, push to Undo history, and redirect to CV Builder
+  const handleTailorSuccess = (
+    updatedProfile: MasterCvProfile,
+    jobContext: { jobTitle: string; jobDescription: string }
+  ) => {
+    history.set(updatedProfile, true);
+    setTailoredJobContext({
+      jobTitle: jobContext.jobTitle,
+      jobDescription: jobContext.jobDescription,
+      tailoredAt: new Date().toISOString(),
+    });
+    setActiveTab('builder');
+  };
+
+  // Archive tailored application directly from MasterCvStudio banner
+  const handleArchiveTailoredApplication = async (newRecord: JobApplicationRecord) => {
+    try {
+      const existingRaw = localStorage.getItem('huntflow_applications');
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+      if (Array.isArray(existing)) {
+        localStorage.setItem('huntflow_applications', JSON.stringify([newRecord, ...existing]));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/db/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application: newRecord }),
+      });
+    } catch (e) {
+      console.error('Failed to persist tailored application to SQLite:', e);
+    }
+
+    setTailoredJobContext(null);
+    setActiveTab('archive');
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* 2-Tab Top Header Navigation with prominent Download ATS PDF button */}
+      {/* Top Header Navigation with prominent Download ATS PDF button */}
       <HeaderNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -430,20 +475,36 @@ export default function HomePage() {
             onUndo={history.undo}
             onRedo={history.redo}
             saveStatus={saveStatus}
+            tailoredJobContext={tailoredJobContext}
+            onDismissTailorBanner={() => setTailoredJobContext(null)}
+            onArchiveTailoredJob={() => setIsArchiveModalOpen(true)}
+            onNavigateToTailor={() => setActiveTab('tailor')}
+            openSettingsSignal={openSettingsSignal}
           />
         )}
 
-        {/* TAB 2: Career Track Vault */}
+        {/* TAB 2: Career Knowledge Base */}
         {activeTab === 'career' && (
-          <CareerTrackView
-            masterProfile={currentProfile}
-            onUpdateMasterProfile={handleUpdateMasterProfile}
-            aiConfig={aiConfig}
-            onNavigateToStudio={() => setActiveTab('builder')}
+          <CareerKnowledgeBaseView
+            onNavigateToTailor={() => setActiveTab('tailor')}
           />
         )}
 
-        {/* TAB 3: Job Archive */}
+        {/* TAB 3: Tailor CV for New Job Wizard */}
+        {activeTab === 'tailor' && (
+          <NewJobTailorWizard
+            currentMasterProfile={currentProfile}
+            aiConfig={aiConfig}
+            onTailorSuccess={handleTailorSuccess}
+            onNavigateToCareerBase={() => setActiveTab('career')}
+            onOpenAiSettings={() => {
+              setActiveTab('builder');
+              setOpenSettingsSignal((prev) => prev + 1);
+            }}
+          />
+        )}
+
+        {/* TAB 4: Job Archive */}
         {activeTab === 'archive' && (
           <PipelineView
             masterProfile={currentProfile}
@@ -451,6 +512,18 @@ export default function HomePage() {
           />
         )}
       </main>
+
+      {/* Pre-filled Archive Modal from Tailored CV Banner */}
+      {isArchiveModalOpen && (
+        <AddApplicationModal
+          isOpen={isArchiveModalOpen}
+          onClose={() => setIsArchiveModalOpen(false)}
+          onAdd={handleArchiveTailoredApplication}
+          masterProfile={currentProfile}
+          initialJobTitle={tailoredJobContext?.jobTitle || ''}
+          initialJobDescription={tailoredJobContext?.jobDescription || ''}
+        />
+      )}
 
       {/* Optional Collapsible Import Drawer (Kept completely out of the main way) */}
       {showImportDrawer && (

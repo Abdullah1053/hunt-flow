@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { JobApplicationRecord, JobApplicationStatus } from '@/types/pipeline';
 import { MasterCvProfile } from '@/types/masterCv';
 import { X, FileText, Upload, CheckCircle2, Loader2, Link as LinkIcon, Building, Briefcase } from 'lucide-react';
@@ -10,6 +10,9 @@ interface AddApplicationModalProps {
   onClose: () => void;
   onAdd: (record: JobApplicationRecord) => void;
   masterProfile: MasterCvProfile;
+  initialJobTitle?: string;
+  initialJobDescription?: string;
+  initialCompany?: string;
 }
 
 export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
@@ -17,16 +20,28 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
   onClose,
   onAdd,
   masterProfile,
+  initialJobTitle = '',
+  initialJobDescription = '',
+  initialCompany = '',
 }) => {
-  const [jobTitle, setJobTitle] = useState('');
-  const [company, setCompany] = useState('');
+  const [jobTitle, setJobTitle] = useState(initialJobTitle);
+  const [company, setCompany] = useState(initialCompany);
   const [jobUrl, setJobUrl] = useState('');
-  const [jobDescription, setJobDescription] = useState('');
+  const [jobDescription, setJobDescription] = useState(initialJobDescription);
   const [status, setStatus] = useState<JobApplicationStatus>('applied');
   const [pdfSource, setPdfSource] = useState<'current' | 'upload'>('current');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setJobTitle(initialJobTitle);
+      setJobDescription(initialJobDescription);
+      setCompany(initialCompany);
+      setPdfSource('current');
+    }
+  }, [isOpen, initialJobTitle, initialJobDescription, initialCompany]);
 
   if (!isOpen) return null;
 

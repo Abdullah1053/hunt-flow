@@ -17,14 +17,29 @@ function getCompletionsUrl(baseUrl: string): string {
 }
 
 /**
- * Strips markdown code fences (e.g. ```json ... ```) from LLM output.
+ * Strips markdown code fences (e.g. ```json ... ```) and stray surrounding prose from LLM output.
  */
 export function cleanJsonOutput(raw: string): string {
   let trimmed = raw.trim();
-  if (trimmed.startsWith('```')) {
+
+  // Extract content inside markdown code fences if present anywhere in the response
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedMatch && fencedMatch[1]) {
+    trimmed = fencedMatch[1].trim();
+  } else if (trimmed.startsWith('```')) {
     trimmed = trimmed.replace(/^```(?:json)?\s*/i, '');
-    trimmed = trimmed.replace(/\s*```$/, '');
+    trimmed = trimmed.replace(/\s*```$/, '').trim();
   }
+
+  // Fallback: isolate outermost JSON object if LLM added leading/trailing commentary
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      trimmed = trimmed.slice(firstBrace, lastBrace + 1);
+    }
+  }
+
   return trimmed.trim();
 }
 
@@ -168,8 +183,8 @@ export async function callUniversalAiJson<T>(
     body: JSON.stringify(body),
   });
 
-  // Some providers (e.g. certain local Ollama models) fail when response_format is passed
-  if (!res.ok && res.status === 400) {
+  // Some providers (e.g. certain local Ollama or proxy models) fail when response_format is passed
+  if (!res.ok && (res.status === 400 || res.status === 422)) {
     delete body.response_format;
     res = await fetch(completionsUrl, {
       method: 'POST',

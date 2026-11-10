@@ -66,6 +66,15 @@ export function getDatabase(): Database.Database {
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS career_bullets (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL,
+      context_label TEXT,
+      bullet_text TEXT NOT NULL,
+      is_active_for_ai INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    );
   `);
 
   dbInstance = db;

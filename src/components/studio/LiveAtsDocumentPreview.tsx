@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
+import {
+  MasterCvProfile,
+  isItemVisible,
+  getVisibleBullets,
+  getVisibleSkillCategories,
+} from '@/types/masterCv';
 import { generateAtsPlainText } from '@/lib/pdf/atsPlainText';
 import {
   Download,
@@ -119,8 +124,16 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
   const hiddenProjBulletsCount = projects
     .filter(isItemVisible)
     .reduce((acc, curr) => acc + (curr.hiddenBullets?.length || 0), 0);
+  const hiddenSkillCatsCount =
+    (skills?.hiddenCategories?.length || 0) +
+    (skills?.customCategories?.filter((c) => c.isHidden).length || 0);
   const totalHiddenCount =
-    hiddenExpCount + hiddenProjCount + hiddenExpBulletsCount + hiddenProjBulletsCount;
+    hiddenExpCount +
+    hiddenProjCount +
+    hiddenExpBulletsCount +
+    hiddenProjBulletsCount +
+    hiddenSkillCatsCount;
+  const visibleSkillCategories = getVisibleSkillCategories(skills);
 
   // Format contact info items with clean separators
   const contactParts: { text: string; href?: string }[] = [];
@@ -442,43 +455,21 @@ export const LiveAtsDocumentPreview: React.FC<LiveAtsDocumentPreviewProps> = ({ 
             )}
 
             {/* TECHNICAL SKILLS */}
-            <div className="mt-3.5">
-              <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
-                Technical Skills
-              </h2>
-              <div className="text-[10.5px] space-y-1 text-zinc-900 font-sans">
-                {skills.languages.length > 0 && (
-                  <div>
-                    <strong className="text-black">Languages:</strong>{' '}
-                    {skills.languages.join(', ')}
-                  </div>
-                )}
-                {skills.frameworks.length > 0 && (
-                  <div>
-                    <strong className="text-black">Frameworks & Libraries:</strong>{' '}
-                    {skills.frameworks.join(', ')}
-                  </div>
-                )}
-                {skills.databases.length > 0 && (
-                  <div>
-                    <strong className="text-black">Databases:</strong>{' '}
-                    {skills.databases.join(', ')}
-                  </div>
-                )}
-                {skills.devopsAndCloud.length > 0 && (
-                  <div>
-                    <strong className="text-black">DevOps & Cloud:</strong>{' '}
-                    {skills.devopsAndCloud.join(', ')}
-                  </div>
-                )}
-                {skills.toolsAndConcepts.length > 0 && (
-                  <div>
-                    <strong className="text-black">Architecture & Concepts:</strong>{' '}
-                    {skills.toolsAndConcepts.join(', ')}
-                  </div>
-                )}
+            {visibleSkillCategories.length > 0 && (
+              <div className="mt-3.5">
+                <h2 className="text-[12px] font-sans font-bold uppercase tracking-wider text-black border-b border-black pb-0.5 mb-1.5">
+                  Technical Skills
+                </h2>
+                <div className="text-[10.5px] space-y-1 text-zinc-900 font-sans">
+                  {visibleSkillCategories.map((cat, idx) => (
+                    <div key={`${cat.label}-${idx}`}>
+                      <strong className="text-black">{cat.label}:</strong>{' '}
+                      {cat.items.join(', ')}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* CERTIFICATIONS */}
             {certifications.length > 0 && (

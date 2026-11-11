@@ -10,12 +10,69 @@ export interface PersonalInfo {
   summary: string;
 }
 
+export type BuiltInSkillCategoryKey =
+  | 'languages'
+  | 'frameworks'
+  | 'databases'
+  | 'devopsAndCloud'
+  | 'toolsAndConcepts';
+
+export const BUILT_IN_SKILL_CATEGORY_KEYS: BuiltInSkillCategoryKey[] = [
+  'languages',
+  'frameworks',
+  'databases',
+  'devopsAndCloud',
+  'toolsAndConcepts',
+];
+
+export const DEFAULT_SKILL_CATEGORY_LABELS: Record<BuiltInSkillCategoryKey, string> = {
+  languages: 'Languages',
+  frameworks: 'Frameworks & Libraries',
+  databases: 'Databases',
+  devopsAndCloud: 'DevOps & Cloud',
+  toolsAndConcepts: 'Architecture & Concepts',
+};
+
+export interface CustomSkillCategory {
+  id: string;
+  label: string;
+  items: string[];
+  isHidden?: boolean;
+}
+
 export interface CategorizedSkills {
   languages: string[];
   frameworks: string[];
   databases: string[];
   devopsAndCloud: string[];
   toolsAndConcepts: string[];
+  categoryLabels?: Partial<Record<BuiltInSkillCategoryKey, string>>;
+  hiddenCategories?: BuiltInSkillCategoryKey[];
+  customCategories?: CustomSkillCategory[];
+}
+
+export function getVisibleSkillCategories(
+  skills?: CategorizedSkills | null
+): Array<{ label: string; items: string[] }> {
+  if (!skills) return [];
+  const hiddenSet = new Set<BuiltInSkillCategoryKey>(skills.hiddenCategories || []);
+  const result: Array<{ label: string; items: string[] }> = [];
+
+  for (const key of BUILT_IN_SKILL_CATEGORY_KEYS) {
+    if (hiddenSet.has(key)) continue;
+    const items = skills[key] || [];
+    if (items.length === 0) continue;
+    const label = skills.categoryLabels?.[key]?.trim() || DEFAULT_SKILL_CATEGORY_LABELS[key];
+    result.push({ label, items });
+  }
+
+  for (const custom of skills.customCategories || []) {
+    if (custom.isHidden) continue;
+    if (!custom.label?.trim() || !custom.items || custom.items.length === 0) continue;
+    result.push({ label: custom.label.trim(), items: custom.items });
+  }
+
+  return result;
 }
 
 export interface WorkExperienceItem {

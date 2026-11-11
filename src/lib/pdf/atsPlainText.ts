@@ -1,4 +1,9 @@
-import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
+import {
+  MasterCvProfile,
+  isItemVisible,
+  getVisibleBullets,
+  getVisibleSkillCategories,
+} from '@/types/masterCv';
 
 /**
  * Generates a deterministic, 100% ATS-standard plain text representation
@@ -129,13 +134,7 @@ export function generateAtsPlainText(profile: MasterCvProfile): string {
   }
 
   // 6. TECHNICAL SKILLS
-  const skillCategories = [
-    { label: 'Languages', items: skills?.languages || [] },
-    { label: 'Frameworks & Libraries', items: skills?.frameworks || [] },
-    { label: 'Databases', items: skills?.databases || [] },
-    { label: 'DevOps & Cloud', items: skills?.devopsAndCloud || [] },
-    { label: 'Architecture & Concepts', items: skills?.toolsAndConcepts || [] },
-  ].filter((c) => c.items && c.items.length > 0);
+  const skillCategories = getVisibleSkillCategories(skills);
 
   if (skillCategories.length > 0) {
     const skillLines: string[] = ['TECHNICAL SKILLS'];

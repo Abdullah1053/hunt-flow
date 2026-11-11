@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
         },
         skills: aiParsedResponse.skills
           ? {
+              ...selectedBaseCv.skills,
               languages: Array.isArray(aiParsedResponse.skills.languages)
                 ? aiParsedResponse.skills.languages
                 : selectedBaseCv.skills.languages,

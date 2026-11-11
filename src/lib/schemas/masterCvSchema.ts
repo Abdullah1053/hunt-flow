@@ -12,12 +12,22 @@ export const PersonalInfoSchema = z.object({
   summary: z.string().default(''),
 });
 
+export const CustomSkillCategorySchema = z.object({
+  id: z.string(),
+  label: z.string().min(1),
+  items: z.array(z.string()).default([]),
+  isHidden: z.boolean().optional(),
+});
+
 export const CategorizedSkillsSchema = z.object({
   languages: z.array(z.string()).default([]),
   frameworks: z.array(z.string()).default([]),
   databases: z.array(z.string()).default([]),
   devopsAndCloud: z.array(z.string()).default([]),
   toolsAndConcepts: z.array(z.string()).default([]),
+  categoryLabels: z.record(z.string(), z.string()).optional(),
+  hiddenCategories: z.array(z.enum(['languages', 'frameworks', 'databases', 'devopsAndCloud', 'toolsAndConcepts'])).optional(),
+  customCategories: z.array(CustomSkillCategorySchema).optional(),
 });
 
 export const WorkExperienceItemSchema = z.object({

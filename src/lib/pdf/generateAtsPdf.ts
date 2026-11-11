@@ -1,4 +1,9 @@
-import { MasterCvProfile, isItemVisible, getVisibleBullets } from '@/types/masterCv';
+import {
+  MasterCvProfile,
+  isItemVisible,
+  getVisibleBullets,
+  getVisibleSkillCategories,
+} from '@/types/masterCv';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit');
@@ -246,13 +251,7 @@ function measureResumeHeight(
   }
 
   // 8. Technical Skills
-  const skillCategories = [
-    { label: 'Languages', items: skills?.languages || [] },
-    { label: 'Frameworks & Libraries', items: skills?.frameworks || [] },
-    { label: 'Databases', items: skills?.databases || [] },
-    { label: 'DevOps & Cloud', items: skills?.devopsAndCloud || [] },
-    { label: 'Architecture & Concepts', items: skills?.toolsAndConcepts || [] },
-  ].filter((cat) => cat.items && cat.items.length > 0);
+  const skillCategories = getVisibleSkillCategories(skills);
 
   if (skillCategories.length > 0) {
     totalHeight += getSectionHeaderHeight('TECHNICAL SKILLS', renderedSectionCount === 0);
@@ -621,13 +620,7 @@ export async function generateAtsPdf(
       // ----------------------------------------------------
       // 8. TECHNICAL SKILLS
       // ----------------------------------------------------
-      const skillCategories = [
-        { label: 'Languages', items: skills?.languages || [] },
-        { label: 'Frameworks & Libraries', items: skills?.frameworks || [] },
-        { label: 'Databases', items: skills?.databases || [] },
-        { label: 'DevOps & Cloud', items: skills?.devopsAndCloud || [] },
-        { label: 'Architecture & Concepts', items: skills?.toolsAndConcepts || [] },
-      ].filter((cat) => cat.items && cat.items.length > 0);
+      const skillCategories = getVisibleSkillCategories(skills);
 
       if (skillCategories.length > 0) {
         renderSectionHeader('TECHNICAL SKILLS');

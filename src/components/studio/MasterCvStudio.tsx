@@ -559,7 +559,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
               <SkillsEditor
                 skills={profile.skills}
                 onChange={(updated) =>
-                  onUpdateProfile({ ...profile, skills: updated }, true)
+                  onUpdateProfile({ ...profile, skills: updated }, false)
                 }
               />
             )}
@@ -623,7 +623,7 @@ export const MasterCvStudio: React.FC<MasterCvStudioProps> = ({
             <SkillsEditor
               skills={profile.skills}
               onChange={(updated) =>
-                onUpdateProfile({ ...profile, skills: updated }, true)
+                onUpdateProfile({ ...profile, skills: updated }, false)
               }
             />
           )}
